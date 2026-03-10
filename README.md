@@ -4,6 +4,21 @@ Simple text editor application built with **C** and **Win32 API**.
 
 ---
 
+## 👥 Team
+
+### Anggota Kelompok
+
+| NIM       | Nama                  | GitHub                                                         |
+| --------- | --------------------- | -------------------------------------------------------------- |
+| 251511062 | Wildan M Zaki         | [@WildanMZaki](https://github.com/WildanMZaki)                 |
+| 251511050 | Muhammad Miqdar Salim | [@muhammadmiqdartif25](https://github.com/muhammadmiqdartif25) |
+
+### Dosen Penanggung Jawab
+
+**Yudi Widhiyasana, S.Si., MT**
+
+---
+
 ## 📋 Requirements
 
 Pastikan tools berikut sudah terinstall sebelum memulai setup project:
@@ -29,7 +44,7 @@ cmake --version
 
 ## 🚀 Setup
 
-### Visual Studio Code
+### Visual Studio Code ([Install Here](https://code.visualstudio.com/download))
 
 1. **Clone repository:**
 
@@ -73,21 +88,24 @@ cmake --version
    ```
 
    ![CLion - New Project from VCS](docs/images/clion-clone.png)
-   > *Navigasi ke File → New → Project from Version Control, lalu tempel URL repository.*
+
+   > _Navigasi ke File → New → Project from Version Control, lalu tempel URL repository._
 
 3. **Konfigurasi project**
 
    Setelah proses clone selesai, project wizard akan muncul. Biarkan semua pengaturan dalam kondisi default, lalu klik **OK**.
 
    ![CLion - Project Wizard](docs/images/clion-wizard.png)
-   > *Biarkan pengaturan default dan klik OK untuk melanjutkan.*
+
+   > _Biarkan pengaturan default dan klik OK untuk melanjutkan._
 
 4. **Build dan jalankan aplikasi**
 
    Klik tombol **Run** (▶) di pojok kanan atas untuk melakukan build dan menjalankan aplikasi.
 
    ![CLion - Run Button](docs/images/clion-run.png)
-   > *Klik tombol Run berwarna hijau untuk build dan menjalankan aplikasi.*
+
+   > _Klik tombol Run berwarna hijau untuk build dan menjalankan aplikasi._
 
 ---
 
@@ -99,19 +117,8 @@ cmake --version
 
 ## 📝 Releases
 
-Belum ada rilis. Pantau terus untuk update build terbaru.
+Lihat daftar versi Archivista yang telah dirilis pada tautan berikut:
+
+https://github.com/WildanMZaki/Archivista/releases
 
 ---
-
-## 👥 Team
-
-### Anggota Kelompok
-
-| NIM       | Nama                  | GitHub                                                         |
-| --------- | --------------------- | -------------------------------------------------------------- |
-| 251511062 | Wildan M Zaki         | [@WildanMZaki](https://github.com/WildanMZaki)                 |
-| 251511050 | Muhammad Miqdar Salim | [@muhammadmiqdartif25](https://github.com/muhammadmiqdartif25) |
-
-### Dosen Penanggung Jawab
-
-**Yudi Widhiyasana, S.Si., MT**
