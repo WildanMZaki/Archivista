@@ -1,5 +1,5 @@
-#ifndef PROYEK_2_REAL_MIQDAR_H
-#define PROYEK_2_REAL_MIQDAR_H
+#ifndef ARCHIVISTA_MIQDAR_H
+#define ARCHIVISTA_MIQDAR_H
 #include <windows.h>
 
 #define APP_TITLE "Archivista"
@@ -12,4 +12,4 @@ BOOL InitInstance(HINSTANCE hinstance, int nCmdShow);
 HWND CreateCanvas(HWND hWnd);
 HFONT CustomFontCanvas(LPCSTR fontName, int fontHeight, int fontWidth);
 
-#endif //PROYEK_2_REAL_MIQDAR_H
+#endif // ARCHIVISTA_MIQDAR_H

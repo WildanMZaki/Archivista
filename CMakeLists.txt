@@ -3,7 +3,11 @@ project(Archivista C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(Archivista WIN32 Source/main.c
-        Header/main.h
+add_executable(Archivista WIN32
+        Source/main.c
         Source/miqdar.c
-        Header/miqdar.h)
+        Source/menu.c
+        Header/main.h
+        Header/miqdar.h
+        Header/menu.h
+)

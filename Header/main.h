@@ -1,5 +1,5 @@
-#ifndef PROYEK_2_REAL_MAIN_H
-#define PROYEK_2_REAL_MAIN_H
+#ifndef ARCHIVISTA_MAIN_H
+#define ARCHIVISTA_MAIN_H
 #include <windows.h>
 #include "miqdar.h"
 
@@ -11,4 +11,4 @@ extern HWND hEdit;
 extern HFONT EditorFont;
 LRESULT CALLBACK WinProc(HWND, UINT, WPARAM, LPARAM);
 
-#endif //PROYEK_2_REAL_MAIN_H
+#endif // ARCHIVISTA_MAIN_H
