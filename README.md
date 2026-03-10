@@ -54,7 +54,21 @@ cmake --version
 
 ### CLion
 
-> ⚠️ Panduan CLion akan ditambahkan kemudian.
+   1. Install Clion:
+
+      Dari Link : [Clion](https://www.jetbrains.com/clion/)
+
+   
+   2.Buka Clion :
+     Setelah Clion terbuka klik New > Project from Version Control
+     Masukan Url Repository https://github.com/WildanMZaki/Archivista.git lalu pilih clone.
+
+   3.Setup Project :
+     Setelah Clone, akan muncul project wizard. biarkan default saja lalu pencet button ok.
+
+   4.Untuk Build :
+     Klik tombol run di kanan atas.
+
 
 ## Installation
 
@@ -66,10 +80,10 @@ cmake --version
 
 ### Anggota Kelompok
 
-| NIM       | Nama           | GitHub                                         |
-| --------- | -------------- | ---------------------------------------------- |
-| 251511062 | Wildan M Zaki  | [@WildanMZaki](https://github.com/WildanMZaki) |
-| 123456002 | Nama Anggota 2 | [@username2](https://github.com/username2)     |
+| NIM       | Nama                  | GitHub                                         |
+|-----------|-----------------------| ---------------------------------------------- |
+| 251511062 | Wildan M Zaki         | [@WildanMZaki](https://github.com/WildanMZaki) |
+| 251511050 | Muhammad Miqdar Salim | [@muhammadmiqdartif25](https://github.com/muhammadmiqdartif25)     |
 
 ### Dosen Penanggung Jawab
 
