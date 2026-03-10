@@ -7,7 +7,9 @@ add_executable(Archivista WIN32
         Source/main.c
         Source/miqdar.c
         Source/menu.c
+        Source/buffer.c
         Header/main.h
         Header/miqdar.h
         Header/menu.h
+        Header/buffer.h
 )
