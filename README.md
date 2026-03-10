@@ -40,16 +40,16 @@ cmake --version
    code .
    ```
 
-3. Untuk **debug**, jalankan:
+3. Untuk **debug**, jalankan perintah berikut (Wajib Menggunakan `Command Prompt` atau `Powershell`):
 
    ```bash
-   ./debug.bat
+   debug
    ```
 
 4. Untuk **build release** (menghasilkan `.exe` final):
 
    ```bash
-   ./build-release.bat
+   build-release
    ```
 
 ### CLion
