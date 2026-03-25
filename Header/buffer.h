@@ -1,36 +1,25 @@
 #ifndef ARCHIVISTA_BUFFER_H
 #define ARCHIVISTA_BUFFER_H
 
-#define INITIAL_LINE_CAPACITY 16   // Initial capacity for characters in a line
-#define INITIAL_BUFFER_CAPACITY 16 // Initial capacity for number of lines
-
-// ========== Structs ==========
-
-typedef struct
-{
-    char *text;   // Array of characters (isi satu baris)
-    int length;   // Jumlah karakter aktual
-    int capacity; // Kapasitas allocated
-} Line;
+// Static 2D buffer limits (ubah sesuai requirement dosen)
+#define BUF_MAX_LINES 2000
+#define BUF_MAX_COLS 512 // termasuk '\0'
 
 typedef struct
 {
-    Line *lines;      // Array of Line (array 2D)
-    int lineCount;    // Jumlah baris aktual
-    int lineCapacity; // Kapasitas allocated untuk lines
-    int cursorRow;    // Posisi cursor - baris
-    int cursorCol;    // Posisi cursor - kolom
+    // lines[row] adalah string null-terminated
+    char lines[BUF_MAX_LINES][BUF_MAX_COLS];
+    int lineLen[BUF_MAX_LINES]; // panjang aktual tiap baris (tanpa '\0')
+
+    int lineCount; // minimal 1
+    int cursorRow;
+    int cursorCol;
 } TextBuffer;
 
 // ========== Lifecycle ==========
 void Buffer_Init(TextBuffer *buf);
-void Buffer_Free(TextBuffer *buf);
-void Buffer_Clear(TextBuffer *buf);
-
-// ========== Line Operations (internal helpers) ==========
-void Line_Init(Line *line);
-void Line_Free(Line *line);
-void Line_EnsureCapacity(Line *line, int needed);
+void Buffer_Free(TextBuffer *buf);  // untuk static: reset/no-op
+void Buffer_Clear(TextBuffer *buf); // reset jadi 1 baris kosong
 
 // ========== Text Editing ==========
 void Buffer_InsertChar(TextBuffer *buf, char c);
