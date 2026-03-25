@@ -9,7 +9,6 @@ add_executable(Archivista WIN32
         Source/app.c
         Source/render.c
         Source/keyboard.c
-        Source/mouse.c
         Source/scroll.c
         Source/window.c
         Source/menu.c
@@ -20,7 +19,6 @@ add_executable(Archivista WIN32
         Header/app.h
         Header/render.h
         Header/keyboard.h
-        Header/mouse.h
         Header/scroll.h
         Header/window.h
         Header/menu.h
