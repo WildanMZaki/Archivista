@@ -1,4 +1,4 @@
-#include "../Header/miqdar.h"
+#include "../Header/window.h"
 
 BOOL InitApplication(HINSTANCE hInstance, WNDPROC winProc)
 {
@@ -11,7 +11,7 @@ BOOL InitApplication(HINSTANCE hInstance, WNDPROC winProc)
     wcx.cbWndExtra = 0;
     wcx.hInstance = hInstance;
     wcx.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    wcx.hCursor = LoadCursor(NULL, IDC_IBEAM); // I-beam cursor (text editor)
+    wcx.hCursor = LoadCursor(NULL, IDC_IBEAM);
     wcx.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
     wcx.lpszMenuName = NULL;
     wcx.lpszClassName = APP_TITLE;
@@ -66,7 +66,7 @@ HFONT CustomFontCanvas(LPCSTR fontName, int fontHeight, int fontWidth)
         OUT_DEFAULT_PRECIS,
         CLIP_DEFAULT_PRECIS,
         CLEARTYPE_QUALITY,
-        FIXED_PITCH | FF_MODERN, // Monospace font
+        FIXED_PITCH | FF_MODERN,
         fontName);
 
     return hFont;

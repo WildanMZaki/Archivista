@@ -1,5 +1,6 @@
-#ifndef ARCHIVISTA_MIQDAR_H
-#define ARCHIVISTA_MIQDAR_H
+#ifndef ARCHIVISTA_WINDOW_H
+#define ARCHIVISTA_WINDOW_H
+
 #include <windows.h>
 
 #define APP_TITLE "Archivista"
@@ -10,4 +11,4 @@ BOOL InitApplication(HINSTANCE hInstance, WNDPROC winProc);
 BOOL InitInstance(HINSTANCE hinstance, int nCmdShow);
 HFONT CustomFontCanvas(LPCSTR fontName, int fontHeight, int fontWidth);
 
-#endif // ARCHIVISTA_MIQDAR_H
+#endif // ARCHIVISTA_WINDOW_H

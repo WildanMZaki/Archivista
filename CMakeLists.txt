@@ -5,9 +5,22 @@ set(CMAKE_C_STANDARD 99)
 
 add_executable(Archivista WIN32
         Source/main.c
-        Source/miqdar.c
+        Source/winproc.c
+        Source/app.c
+        Source/render.c
+        Source/keyboard.c
+        Source/scroll.c
+        Source/window.c
         Source/menu.c
+        Source/buffer.c
+
         Header/main.h
-        Header/miqdar.h
+        Header/winproc.h
+        Header/app.h
+        Header/render.h
+        Header/keyboard.h
+        Header/scroll.h
+        Header/window.h
         Header/menu.h
+        Header/buffer.h
 )
