@@ -1,4 +1,4 @@
-#include "../Header/miqdar.h"
+#include "../Header/window.h"
 
 BOOL InitApplication(HINSTANCE hInstance, WNDPROC winProc)
 {
