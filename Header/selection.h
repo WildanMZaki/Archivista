@@ -2,8 +2,10 @@
 #define ARCHIVISTA_SELECTION_H
 
 #include <windows.h>
-#include "../Header/app.h"
+#include "app.h"
 
-void GetTextPositionFromMouse(LPARAM lParam, AppState *s, int *outRow, int *outCol);
+void Selection_SelectPoint(AppState *s, int row, int col);
+void Selection_SelectLine(AppState *s, int row);
+void Selection_SelectWord(AppState *s, int row, int col);
 
 #endif //ARCHIVISTA_SELECTION_H
