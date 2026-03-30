@@ -24,4 +24,6 @@ add_executable(Archivista WIN32
         Header/menu.h
         Header/buffer.h
         Header/mouse.h
+        Header/selection.h
+        Source/selection.c
 )
