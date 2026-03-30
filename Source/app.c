@@ -44,6 +44,11 @@ LRESULT App_OnCreate(HWND hWnd)
     s->cursorVisible = TRUE;
     s->scrollX = 0;
     s->scrollY = 0;
+    s->selection.active = 0;
+    s->selection.start.row = 0;
+    s->selection.start.col = 0;
+    s->selection.end.row = 0;
+    s->selection.end.col = 0;
 
     Render_CalcCharSize(hWnd);
 
@@ -118,6 +123,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     {
     case ID_FILE_NEW:
         Buffer_Clear(&s->textBuffer);
+        s->selection.active = 0;
         s->scrollX = 0;
         s->scrollY = 0;
         InvalidateRect(hWnd, NULL, FALSE);
@@ -144,7 +150,13 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
         return 0;
 
     case ID_EDIT_CUT:
-        MessageBox(hWnd, "Cut - belum diimplementasi", "Info", MB_OK);
+        if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
+        {
+            s->selection.active = 0;
+            App_ResetBlink(hWnd, s);
+            Scroll_EnsureCursorVisible(hWnd);
+            InvalidateRect(hWnd, NULL, FALSE);
+        }
         return 0;
 
     case ID_EDIT_COPY:
@@ -156,14 +168,32 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
         return 0;
 
     case ID_EDIT_DELETE:
-        Buffer_Delete(&s->textBuffer);
+        if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
+        {
+            s->selection.active = 0;
+        }
+        else
+        {
+            Buffer_Delete(&s->textBuffer);
+        }
         App_ResetBlink(hWnd, s);
         Scroll_EnsureCursorVisible(hWnd);
         InvalidateRect(hWnd, NULL, FALSE);
         return 0;
 
     case ID_EDIT_SELECTALL:
-        MessageBox(hWnd, "Select All - belum diimplementasi", "Info", MB_OK);
+        s->selection.active = 1;
+        s->selection.start.row = 0;
+        s->selection.start.col = 0;
+        s->selection.end.row = s->textBuffer.lineCount - 1;
+        s->selection.end.col = s->textBuffer.lineLen[s->selection.end.row];
+
+        s->textBuffer.cursorRow = s->selection.end.row;
+        s->textBuffer.cursorCol = s->selection.end.col;
+
+        App_ResetBlink(hWnd, s);
+        Scroll_EnsureCursorVisible(hWnd);
+        InvalidateRect(hWnd, NULL, FALSE);
         return 0;
 
     case ID_HELP_ABOUT:

@@ -16,6 +16,19 @@ typedef struct
     int cursorCol;
 } TextBuffer;
 
+typedef struct
+{
+    int row;
+    int col;
+} TextPos;
+
+typedef struct
+{
+    int active;
+    TextPos start;
+    TextPos end;
+} TextSelection;
+
 // ========== Lifecycle ==========
 void Buffer_Init(TextBuffer *buf);
 void Buffer_Free(TextBuffer *buf);  // untuk static: reset/no-op
@@ -26,6 +39,12 @@ void Buffer_InsertChar(TextBuffer *buf, char c);
 void Buffer_InsertNewline(TextBuffer *buf);
 void Buffer_Backspace(TextBuffer *buf);
 void Buffer_Delete(TextBuffer *buf);
+
+// ========== Selection ==========
+int Buffer_HasSelection(const TextBuffer *buf, const TextSelection *sel);
+void Buffer_NormalizeSelection(const TextBuffer *buf, const TextSelection *sel, TextPos *outStart, TextPos *outEnd);
+char *Buffer_GetSelectedString(const TextBuffer *buf, const TextSelection *sel); // Caller must free() result
+int Buffer_DeleteSelection(TextBuffer *buf, const TextSelection *sel);           // Return 1 if deleted
 
 // ========== Conversion ==========
 char *Buffer_ToString(TextBuffer *buf); // Caller must free() the result

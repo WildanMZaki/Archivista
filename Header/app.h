@@ -17,6 +17,7 @@ typedef struct
     int scrollY;
 
     TextBuffer textBuffer;
+    TextSelection selection;
 } AppState;
 
 // Store/retrieve state via GWLP_USERDATA
