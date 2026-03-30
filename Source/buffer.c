@@ -2,6 +2,44 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int Buffer_ClampInt(int value, int minValue, int maxValue)
+{
+    if (value < minValue)
+        return minValue;
+    if (value > maxValue)
+        return maxValue;
+    return value;
+}
+
+static TextPos Buffer_ClampPos(const TextBuffer *buf, TextPos pos)
+{
+    TextPos out = pos;
+
+    if (!buf || buf->lineCount <= 0)
+    {
+        out.row = 0;
+        out.col = 0;
+        return out;
+    }
+
+    out.row = Buffer_ClampInt(out.row, 0, buf->lineCount - 1);
+    out.col = Buffer_ClampInt(out.col, 0, buf->lineLen[out.row]);
+    return out;
+}
+
+static int Buffer_PosCompare(TextPos a, TextPos b)
+{
+    if (a.row < b.row)
+        return -1;
+    if (a.row > b.row)
+        return 1;
+    if (a.col < b.col)
+        return -1;
+    if (a.col > b.col)
+        return 1;
+    return 0;
+}
+
 static void Buffer_SetLineEmpty(TextBuffer *buf, int row)
 {
     buf->lines[row][0] = '\0';
@@ -209,6 +247,182 @@ void Buffer_Delete(TextBuffer *buf)
     }
 
     buf->lineCount--;
+}
+
+int Buffer_HasSelection(const TextBuffer *buf, const TextSelection *sel)
+{
+    TextPos start;
+    TextPos end;
+
+    if (!buf || !sel || !sel->active)
+        return 0;
+
+    Buffer_NormalizeSelection(buf, sel, &start, &end);
+    return Buffer_PosCompare(start, end) != 0;
+}
+
+void Buffer_NormalizeSelection(const TextBuffer *buf, const TextSelection *sel, TextPos *outStart, TextPos *outEnd)
+{
+    TextPos start = {0, 0};
+    TextPos end = {0, 0};
+
+    if (buf && sel)
+    {
+        start = Buffer_ClampPos(buf, sel->start);
+        end = Buffer_ClampPos(buf, sel->end);
+
+        if (Buffer_PosCompare(start, end) > 0)
+        {
+            TextPos tmp = start;
+            start = end;
+            end = tmp;
+        }
+    }
+
+    if (outStart)
+        *outStart = start;
+    if (outEnd)
+        *outEnd = end;
+}
+
+char *Buffer_GetSelectedString(const TextBuffer *buf, const TextSelection *sel)
+{
+    TextPos start;
+    TextPos end;
+    int totalLen = 0;
+
+    if (!Buffer_HasSelection(buf, sel))
+        return NULL;
+
+    Buffer_NormalizeSelection(buf, sel, &start, &end);
+
+    if (start.row == end.row)
+    {
+        totalLen = end.col - start.col;
+    }
+    else
+    {
+        totalLen += buf->lineLen[start.row] - start.col;
+        totalLen += 2; // "\r\n"
+
+        for (int row = start.row + 1; row < end.row; row++)
+        {
+            totalLen += buf->lineLen[row];
+            totalLen += 2; // "\r\n"
+        }
+
+        totalLen += end.col;
+    }
+
+    char *result = (char *)malloc((size_t)totalLen + 1);
+    if (!result)
+        return NULL;
+
+    char *ptr = result;
+
+    if (start.row == end.row)
+    {
+        int len = end.col - start.col;
+        if (len > 0)
+        {
+            memcpy(ptr, &buf->lines[start.row][start.col], (size_t)len);
+            ptr += len;
+        }
+    }
+    else
+    {
+        int firstLen = buf->lineLen[start.row] - start.col;
+        if (firstLen > 0)
+        {
+            memcpy(ptr, &buf->lines[start.row][start.col], (size_t)firstLen);
+            ptr += firstLen;
+        }
+        *ptr++ = '\r';
+        *ptr++ = '\n';
+
+        for (int row = start.row + 1; row < end.row; row++)
+        {
+            int len = buf->lineLen[row];
+            if (len > 0)
+            {
+                memcpy(ptr, buf->lines[row], (size_t)len);
+                ptr += len;
+            }
+            *ptr++ = '\r';
+            *ptr++ = '\n';
+        }
+
+        if (end.col > 0)
+        {
+            memcpy(ptr, buf->lines[end.row], (size_t)end.col);
+            ptr += end.col;
+        }
+    }
+
+    *ptr = '\0';
+    return result;
+}
+
+int Buffer_DeleteSelection(TextBuffer *buf, const TextSelection *sel)
+{
+    TextPos start;
+    TextPos end;
+
+    if (!Buffer_HasSelection(buf, sel))
+        return 0;
+
+    Buffer_NormalizeSelection(buf, sel, &start, &end);
+
+    if (start.row == end.row)
+    {
+        int row = start.row;
+        int len = buf->lineLen[row];
+        int removeLen = end.col - start.col;
+
+        memmove(&buf->lines[row][start.col],
+                &buf->lines[row][end.col],
+                (size_t)(len - end.col));
+
+        len -= removeLen;
+        buf->lineLen[row] = len;
+        buf->lines[row][len] = '\0';
+    }
+    else
+    {
+        int startLen = start.col;
+        int endTailLen = buf->lineLen[end.row] - end.col;
+        int maxLineLen = BUF_MAX_COLS - 1;
+
+        int copyTailLen = endTailLen;
+        if (startLen + copyTailLen > maxLineLen)
+            copyTailLen = maxLineLen - startLen;
+
+        if (copyTailLen > 0)
+        {
+            memcpy(&buf->lines[start.row][startLen],
+                   &buf->lines[end.row][end.col],
+                   (size_t)copyTailLen);
+        }
+
+        buf->lineLen[start.row] = startLen + copyTailLen;
+        buf->lines[start.row][buf->lineLen[start.row]] = '\0';
+
+        int removeLines = end.row - start.row;
+        for (int row = start.row + 1; row + removeLines < buf->lineCount; row++)
+        {
+            memcpy(buf->lines[row], buf->lines[row + removeLines], BUF_MAX_COLS);
+            buf->lineLen[row] = buf->lineLen[row + removeLines];
+        }
+
+        buf->lineCount -= removeLines;
+        if (buf->lineCount < 1)
+            buf->lineCount = 1;
+    }
+
+    buf->cursorRow = start.row;
+    buf->cursorCol = start.col;
+
+    return 1;
 }
 
 char *Buffer_ToString(TextBuffer *buf)

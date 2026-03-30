@@ -10,6 +10,11 @@ static void Keyboard_ResetBlink(HWND hWnd, AppState *s)
     SetTimer(hWnd, CURSOR_BLINK_TIMER_ID, CURSOR_BLINK_INTERVAL, NULL);
 }
 
+static void Keyboard_ClearSelection(AppState *s)
+{
+    s->selection.active = 0;
+}
+
 LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
 {
     AppState *s = App_GetState(hWnd);
@@ -20,19 +25,32 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     if (c == '\r')
     {
+        Buffer_DeleteSelection(&s->textBuffer, &s->selection);
+        Keyboard_ClearSelection(s);
         Buffer_InsertNewline(&s->textBuffer);
     }
     else if (c == '\b')
     {
-        Buffer_Backspace(&s->textBuffer);
+        if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
+        {
+            Keyboard_ClearSelection(s);
+        }
+        else
+        {
+            Buffer_Backspace(&s->textBuffer);
+        }
     }
     else if (c == '\t')
     {
+        Buffer_DeleteSelection(&s->textBuffer, &s->selection);
+        Keyboard_ClearSelection(s);
         for (int i = 0; i < 4; i++)
             Buffer_InsertChar(&s->textBuffer, ' ');
     }
     else if (c >= 32)
     {
+        Buffer_DeleteSelection(&s->textBuffer, &s->selection);
+        Keyboard_ClearSelection(s);
         Buffer_InsertChar(&s->textBuffer, c);
     }
 
@@ -136,7 +154,14 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
     }
 
     case VK_DELETE:
-        Buffer_Delete(&s->textBuffer);
+        if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
+        {
+            Keyboard_ClearSelection(s);
+        }
+        else
+        {
+            Buffer_Delete(&s->textBuffer);
+        }
         break;
 
     default:
@@ -145,6 +170,12 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     s->textBuffer.cursorRow = row;
     s->textBuffer.cursorCol = col;
+
+    if (wParam == VK_LEFT || wParam == VK_RIGHT || wParam == VK_UP || wParam == VK_DOWN ||
+        wParam == VK_HOME || wParam == VK_END || wParam == VK_PRIOR || wParam == VK_NEXT)
+    {
+        Keyboard_ClearSelection(s);
+    }
 
     Keyboard_ResetBlink(hWnd, s);
     Scroll_EnsureCursorVisible(hWnd);

@@ -43,6 +43,14 @@ LRESULT Render_OnPaint(HWND hWnd)
     SetBkMode(memDC, TRANSPARENT);
     SetTextColor(memDC, RGB(0, 0, 0));
 
+    TextPos selStart = {0, 0};
+    TextPos selEnd = {0, 0};
+    int hasSelection = Buffer_HasSelection(&s->textBuffer, &s->selection);
+    if (hasSelection)
+    {
+        Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selStart, &selEnd);
+    }
+
     // Draw lines
     for (int i = 0; i < s->textBuffer.lineCount; i++)
     {
@@ -55,8 +63,78 @@ LRESULT Render_OnPaint(HWND hWnd)
             break;
 
         int len = s->textBuffer.lineLen[i];
-        if (len > 0)
+        int selColStart = -1;
+        int selColEnd = -1;
+
+        if (hasSelection && i >= selStart.row && i <= selEnd.row)
         {
+            if (selStart.row == selEnd.row)
+            {
+                selColStart = selStart.col;
+                selColEnd = selEnd.col;
+            }
+            else if (i == selStart.row)
+            {
+                selColStart = selStart.col;
+                selColEnd = len;
+            }
+            else if (i == selEnd.row)
+            {
+                selColStart = 0;
+                selColEnd = selEnd.col;
+            }
+            else
+            {
+                selColStart = 0;
+                selColEnd = len;
+            }
+
+            if (selColStart < 0)
+                selColStart = 0;
+            if (selColEnd > len)
+                selColEnd = len;
+            if (selColEnd < selColStart)
+                selColEnd = selColStart;
+        }
+
+        if (selColStart >= 0 && selColEnd > selColStart)
+        {
+            RECT selRect;
+            selRect.left = x + (selColStart * s->charWidth);
+            selRect.top = y;
+            selRect.right = x + (selColEnd * s->charWidth);
+            selRect.bottom = y + s->charHeight;
+
+            HBRUSH selBrush = CreateSolidBrush(RGB(0, 120, 215));
+            FillRect(memDC, &selRect, selBrush);
+            DeleteObject(selBrush);
+
+            if (selColStart > 0)
+            {
+                SetTextColor(memDC, RGB(0, 0, 0));
+                TextOutA(memDC, x, y, s->textBuffer.lines[i], selColStart);
+            }
+
+            SetTextColor(memDC, RGB(255, 255, 255));
+            TextOutA(memDC,
+                     x + (selColStart * s->charWidth),
+                     y,
+                     &s->textBuffer.lines[i][selColStart],
+                     selColEnd - selColStart);
+
+            if (selColEnd < len)
+            {
+                SetTextColor(memDC, RGB(0, 0, 0));
+                TextOutA(memDC,
+                         x + (selColEnd * s->charWidth),
+                         y,
+                         &s->textBuffer.lines[i][selColEnd],
+                         len - selColEnd);
+            }
+        }
+        else if (len > 0)
+        {
+            SetTextColor(memDC, RGB(0, 0, 0));
             TextOutA(memDC, x, y, s->textBuffer.lines[i], len);
         }
     }
