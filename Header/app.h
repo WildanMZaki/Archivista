@@ -16,6 +16,8 @@ typedef struct
     int scrollX;
     int scrollY;
 
+    char currentFilePath[MAX_PATH]; // Menyimpan path file saat ini. Jika string kosong, berarti file belum pernah disave/Open.
+
     TextBuffer textBuffer;
     TextSelection selection;
 } AppState;

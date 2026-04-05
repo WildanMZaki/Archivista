@@ -26,4 +26,6 @@ add_executable(Archivista WIN32
         Header/mouse.h
         Header/selection.h
         Source/selection.c
+        Source/fileops.c
+        Header/fileops.h
 )
