@@ -2,6 +2,7 @@
 #include "../Header/app.h"
 #include "../Header/main.h"
 #include "../Header/scroll.h"
+#include "../Header/shortcuts.h"
 #include <windows.h>
 
 static void Keyboard_ResetBlink(HWND hWnd, AppState *s)
@@ -64,6 +65,9 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
 {
     AppState *s = App_GetState(hWnd);
     if (!s)
+        return 0;
+
+    if (Shortcuts_HandleKeyDown(hWnd, wParam, lParam))
         return 0;
 
     int row = s->textBuffer.cursorRow;

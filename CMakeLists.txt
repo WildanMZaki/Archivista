@@ -12,6 +12,7 @@ add_executable(Archivista WIN32
         Source/scroll.c
         Source/window.c
         Source/menu.c
+        Source/shortcuts.c
         Source/buffer.c
         Source/mouse.c
         Header/main.h
@@ -22,6 +23,7 @@ add_executable(Archivista WIN32
         Header/scroll.h
         Header/window.h
         Header/menu.h
+        Header/shortcuts.h
         Header/buffer.h
         Header/mouse.h
         Header/selection.h
