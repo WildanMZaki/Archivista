@@ -28,4 +28,6 @@ add_executable(Archivista WIN32
         Source/selection.c
         Source/fileops.c
         Header/fileops.h
+        Source/recent.c
+        Header/recent.h
 )

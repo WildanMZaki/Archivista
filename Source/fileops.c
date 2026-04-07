@@ -1,5 +1,6 @@
 #include "../Header/fileops.h"
 #include "../Header/buffer.h"
+#include "../Header/recent.h"
 #include <windef.h>
 
 static OPENFILENAME InitOpenFile(HWND hWnd, AppState *s) {
@@ -67,9 +68,6 @@ void FileOps_Open(HWND hWnd, AppState *s) {
 }
 
 void FileOps_Save(HWND hWnd, AppState *s) {
-  // beacuse in the wmcommand has save and save as i want to separe it, if the
-  // current file path is empty, it will call save as, else it will save the
-  // current file
   if (s->currentFilePath[0] == '\0') {
     FileOps_SaveAs(hWnd, s);
     return;
@@ -88,6 +86,8 @@ void FileOps_Save(HWND hWnd, AppState *s) {
     CloseHandle(hFile);
     return;
   }
+  Recent_AddRecent(s, s->currentFilePath);
+  Recent_UpdateMenuRecent(GetMenu(hWnd), s);
   free(strBuf);
   CloseHandle(hFile);
 }
@@ -112,6 +112,8 @@ void FileOps_SaveAs(HWND hWnd, AppState *s) {
       CloseHandle(hFile);
       return;
     }
+    Recent_AddRecent(s, ofn.lpstrFile);
+    Recent_UpdateMenuRecent(GetMenu(hWnd), s);
     free(strBuf);
     CloseHandle(hFile);
   }
