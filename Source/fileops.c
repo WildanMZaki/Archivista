@@ -98,6 +98,8 @@ void FileOps_Save(HWND hWnd, AppState *s) {
   }
   free(strBuf);
   CloseHandle(hFile);
+  Recent_AddRecent(s, s->currentFilePath);
+  Recent_UpdateMenuRecent(GetMenu(hWnd), s);
 }
 
 void FileOps_SaveAs(HWND hWnd, AppState *s) {
@@ -122,5 +124,7 @@ void FileOps_SaveAs(HWND hWnd, AppState *s) {
     }
     free(strBuf);
     CloseHandle(hFile);
+    Recent_AddRecent(s, ofn.lpstrFile);
+    Recent_UpdateMenuRecent(GetMenu(hWnd), s);
   }
 }
