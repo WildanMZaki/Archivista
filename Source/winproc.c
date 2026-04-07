@@ -35,6 +35,8 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam,
     return Mouse_OnMouseMove(hWnd, wParam, lParam);
   case WM_LBUTTONUP:
     return Mouse_OnLButtonUp(hWnd, wParam, lParam);
+  case WM_LBUTTONDBLCLK:
+    return Mouse_OnLButtonDblClk(hWnd, wParam, lParam);
 
   case WM_COMMAND:
     return App_OnCommand(hWnd, wParam, lParam);
