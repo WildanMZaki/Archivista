@@ -1,6 +1,5 @@
 #include "../Header/fileops.h"
 #include "../Header/buffer.h"
-#include <windef.h>
 
 static OPENFILENAME InitOpenFile(HWND hWnd, AppState *s) {
   OPENFILENAME ofn = {sizeof(OPENFILENAME)};
