@@ -192,7 +192,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
       if (LOWORD(wParam) >= ID_FILE_RECENT_START && LOWORD(wParam) <= ID_FILE_RECENT_END) {
         int idIndex = LOWORD(wParam) - ID_FILE_RECENT_START;
         if (idIndex < s->recentFileCount) {
-          //panggil function untuk membuka file
+          FileOps_Open(hWnd, s, s->recentFiles[idIndex]);
         }
         return 0;
       }

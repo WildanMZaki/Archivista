@@ -1,5 +1,6 @@
 #include "../Header/fileops.h"
 #include "../Header/buffer.h"
+#include "../Header/recent.h"
 
 static OPENFILENAME InitOpenFile(HWND hWnd, AppState *s) {
   OPENFILENAME ofn = {sizeof(OPENFILENAME)};
@@ -74,7 +75,6 @@ void FileOps_Open(HWND hWnd, AppState *s, char *path) {
       }
     }
     ResetCursor(hWnd, s);
-  }
 }
 
 void FileOps_Save(HWND hWnd, AppState *s) {
@@ -96,8 +96,6 @@ void FileOps_Save(HWND hWnd, AppState *s) {
     CloseHandle(hFile);
     return;
   }
-  Recent_AddRecent(s, s->currentFilePath);
-  Recent_UpdateMenuRecent(GetMenu(hWnd), s);
   free(strBuf);
   CloseHandle(hFile);
 }
@@ -122,8 +120,6 @@ void FileOps_SaveAs(HWND hWnd, AppState *s) {
       CloseHandle(hFile);
       return;
     }
-    Recent_AddRecent(s, ofn.lpstrFile);
-    Recent_UpdateMenuRecent(GetMenu(hWnd), s);
     free(strBuf);
     CloseHandle(hFile);
   }
