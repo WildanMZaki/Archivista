@@ -115,7 +115,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     return 0;
 
   case ID_FILE_OPEN:
-    FileOps_Open(hWnd, s);
+    FileOps_Open(hWnd, s, NULL);
     return 0;
 
   case ID_FILE_SAVE:
