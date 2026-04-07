@@ -5,7 +5,7 @@ BOOL InitApplication(HINSTANCE hInstance, WNDPROC winProc)
     WNDCLASSEX wcx;
 
     wcx.cbSize = sizeof(wcx);
-    wcx.style = CS_HREDRAW | CS_VREDRAW;
+    wcx.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
     wcx.lpfnWndProc = winProc;
     wcx.cbClsExtra = 0;
     wcx.cbWndExtra = 0;
