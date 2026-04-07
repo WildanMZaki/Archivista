@@ -38,3 +38,13 @@ void Selection_SelectWord(AppState *s, int row, int col) {
     s->textBuffer.cursorRow = row;
     s->textBuffer.cursorCol = endCol;
 }
+
+void Selection_SelectAll(AppState *s) {
+    s->selection.active = 1;
+    s->selection.start.row = 0;
+    s->selection.start.col = 0;
+    s->selection.end.row = s->textBuffer.lineCount - 1;
+    s->selection.end.col = s->textBuffer.lineLen[s->selection.end.row];
+    s->textBuffer.cursorRow = s->selection.end.row;
+    s->textBuffer.cursorCol = s->selection.end.col;
+}
