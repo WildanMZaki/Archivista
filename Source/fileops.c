@@ -26,36 +26,37 @@ void FileOps_New(HWND hWnd, AppState *s) {
   ResetCursor(hWnd, s);
 }
 
-static void FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
+static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
   HANDLE hFile = CreateFile(path, GENERIC_READ, 0, NULL,
                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == INVALID_HANDLE_VALUE) {
     MessageBox(hWnd, "Failed to open file", "Error", MB_ICONERROR);
-    return;
+    return FALSE;
   }
   DWORD fileSize = GetFileSize(hFile, NULL);
   if (fileSize == INVALID_FILE_SIZE) {
     MessageBox(hWnd, "Failed to get file size", "Error", MB_ICONERROR);
     CloseHandle(hFile);
-    return;
+    return FALSE;
   }
   char *buffer = (char *)malloc(fileSize + 1);
   if (!buffer) {
     MessageBox(hWnd, "Failed to allocate memory", "Error", MB_ICONERROR);
     CloseHandle(hFile);
-    return;
+    return FALSE;
   }
   DWORD bytesRead;
   if (!ReadFile(hFile, buffer, fileSize, &bytesRead, NULL)) {
     MessageBox(hWnd, "Failed to read file", "Error", MB_ICONERROR);
     free(buffer);
     CloseHandle(hFile);
-    return;
+    return FALSE;
   }
   CloseHandle(hFile);
   Buffer_Clear(&s->textBuffer);
   Buffer_FromString(&s->textBuffer, buffer);
   free(buffer);
+  return TRUE;
 }
 
 void FileOps_Open(HWND hWnd, AppState *s, char *path) {
@@ -68,9 +69,9 @@ void FileOps_Open(HWND hWnd, AppState *s, char *path) {
       ofn.lpstrTitle = "Open File";
 
       if (GetOpenFileName(&ofn)) {
-        FileOps_OpenFile(hWnd, s, ofn.lpstrFile);
-      }else {
-        MessageBox(hWnd, "Failed to open file", "Error", MB_ICONERROR);
+        if (!FileOps_OpenFile(hWnd, s, ofn.lpstrFile)) {
+          MessageBox(hWnd, "Failed to open file", "Error", MB_ICONERROR);
+        }
       }
     }
     ResetCursor(hWnd, s);
