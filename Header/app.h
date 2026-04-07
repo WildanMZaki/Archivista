@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include "buffer.h"
+#include "history.h"
 
 typedef struct
 {
@@ -18,6 +19,7 @@ typedef struct
 
     TextBuffer textBuffer;
     TextSelection selection;
+    EditHistory history;
 } AppState;
 
 // Store/retrieve state via GWLP_USERDATA

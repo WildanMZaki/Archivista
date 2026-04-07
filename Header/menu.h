@@ -11,11 +11,12 @@
 
 // Edit menu
 #define ID_EDIT_UNDO 2001
-#define ID_EDIT_CUT 2002
-#define ID_EDIT_COPY 2003
-#define ID_EDIT_PASTE 2004
-#define ID_EDIT_DELETE 2005
-#define ID_EDIT_SELECTALL 2006
+#define ID_EDIT_REDO 2002
+#define ID_EDIT_CUT 2003
+#define ID_EDIT_COPY 2004
+#define ID_EDIT_PASTE 2005
+#define ID_EDIT_DELETE 2006
+#define ID_EDIT_SELECTALL 2007
 
 // Help menu
 #define ID_HELP_ABOUT 3001

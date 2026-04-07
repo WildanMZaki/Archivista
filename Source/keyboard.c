@@ -23,6 +23,7 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
         return 0;
 
     char c = (char)wParam;
+    HistorySnapshot before = History_Capture(&s->textBuffer, &s->selection);
 
     if (c == '\r')
     {
@@ -55,6 +56,7 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
         Buffer_InsertChar(&s->textBuffer, c);
     }
 
+    History_RecordChange(&s->history, &before, &s->textBuffer, &s->selection);
     Keyboard_ResetBlink(hWnd, s);
     Scroll_EnsureCursorVisible(hWnd);
     InvalidateRect(hWnd, NULL, FALSE);
@@ -158,6 +160,8 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
     }
 
     case VK_DELETE:
+    {
+        HistorySnapshot before = History_Capture(&s->textBuffer, &s->selection);
         if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
         {
             Keyboard_ClearSelection(s);
@@ -166,7 +170,9 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         {
             Buffer_Delete(&s->textBuffer);
         }
+        History_RecordChange(&s->history, &before, &s->textBuffer, &s->selection);
         break;
+    }
 
     default:
         return DefWindowProc(hWnd, WM_KEYDOWN, wParam, lParam);
