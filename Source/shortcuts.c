@@ -43,11 +43,11 @@ BOOL Shortcuts_HandleKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         return TRUE;
 
     case 'Z':
-        SendMessage(hWnd, WM_COMMAND, shiftDown ? ID_EDIT_REDO : ID_EDIT_UNDO, 0);
+        // SendMessage(hWnd, WM_COMMAND, shiftDown ? ID_EDIT_REDO : ID_EDIT_UNDO, 0);
         return TRUE;
 
     case 'Y':
-        SendMessage(hWnd, WM_COMMAND, ID_EDIT_REDO, 0);
+        // SendMessage(hWnd, WM_COMMAND, ID_EDIT_REDO, 0);
         return TRUE;
 
     default:

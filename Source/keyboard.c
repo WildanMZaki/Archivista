@@ -55,6 +55,7 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
         Buffer_InsertChar(&s->textBuffer, c);
     }
 
+    s->isEdited = TRUE;
     Keyboard_ResetBlink(hWnd, s);
     Scroll_EnsureCursorVisible(hWnd);
     InvalidateRect(hWnd, NULL, FALSE);
@@ -166,6 +167,7 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         {
             Buffer_Delete(&s->textBuffer);
         }
+        s->isEdited = TRUE;
         break;
 
     default:
