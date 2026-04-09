@@ -191,9 +191,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     default:
       if (LOWORD(wParam) >= ID_FILE_RECENT_START && LOWORD(wParam) <= ID_FILE_RECENT_END) {
         int idIndex = LOWORD(wParam) - ID_FILE_RECENT_START;
-        if (idIndex < s->recentFileCount) {
-          FileOps_Open(hWnd, s, s->recentFiles[idIndex]);
-        }
+        FileOps_Open(hWnd, s, Recent_GetRecentPathByIndex(idIndex));
         return 0;
       }
   }

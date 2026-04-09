@@ -4,9 +4,6 @@
 #include <windows.h>
 #include "buffer.h"
 
-#define MAX_RECENT_FILES 5
-#define RECENT_INI_NAME "recent.ini"
-
 typedef struct
 {
     HFONT editorFont;
@@ -20,9 +17,6 @@ typedef struct
     int scrollY;
 
     char currentFilePath[MAX_PATH]; // Menyimpan path file saat ini. Jika string kosong, berarti file belum pernah disave/Open.
-    char recentFiles[MAX_RECENT_FILES][MAX_PATH];   // Array untuk menyimpan path string
-    int recentFileCount;             // Jumlah history yang ada saat ini
-
 
     TextBuffer textBuffer;
     TextSelection selection;
