@@ -25,8 +25,9 @@ LRESULT App_OnCreate(HWND hWnd) {
     return -1;
 
   App_AttachState(hWnd, s);
-
   Buffer_Init(&s->textBuffer);
+
+  s->isEdited = FALSE;
 
   HMENU hMenu = CreateAppMenu();
   SetMenu(hWnd, hMenu);
@@ -67,6 +68,13 @@ LRESULT App_OnDestroy(HWND hWnd) {
   }
 
   PostQuitMessage(0);
+  return 0;
+}
+
+LRESULT App_OnClose(HWND hWnd) {
+  AppState *s = App_GetState(hWnd);
+  if (!ConfirmSave(hWnd, s)) return 0;
+  DestroyWindow(hWnd);
   return 0;
 }
 
@@ -127,6 +135,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     return 0;
 
   case ID_FILE_EXIT:
+    if (!ConfirmSave(hWnd, s)) return 0;
     PostMessage(hWnd, WM_CLOSE, 0, 0);
     return 0;
 
@@ -140,6 +149,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
       App_ResetBlink(hWnd, s);
       Scroll_EnsureCursorVisible(hWnd);
       InvalidateRect(hWnd, NULL, FALSE);
+      s->isEdited = TRUE;
     }
     return 0;
 
@@ -157,6 +167,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     } else {
       Buffer_Delete(&s->textBuffer);
     }
+    s->isEdited = TRUE;
     App_ResetBlink(hWnd, s);
     Scroll_EnsureCursorVisible(hWnd);
     InvalidateRect(hWnd, NULL, FALSE);
