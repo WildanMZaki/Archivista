@@ -1,23 +1,28 @@
 #ifndef ARCHIVISTA_APP_H
 #define ARCHIVISTA_APP_H
 
-#include "buffer.h"
 #include <windows.h>
+#include "buffer.h"
 
-typedef struct {
-  HFONT editorFont;
+#define MAX_RECENT_FILES 5
+#define RECENT_INI_NAME "recent.ini"
 
-  BOOL cursorVisible; // blink state
-  int charWidth;
-  int charHeight;
+typedef struct
+{
+    HFONT editorFont;
 
-  // Scroll state (pixels)
-  int scrollX;
-  int scrollY;
+    BOOL cursorVisible; // blink state
+    int charWidth;
+    int charHeight;
 
-  char currentFilePath[MAX_PATH]; // Menyimpan path file saat ini. Jika string
-                                  // kosong, berarti file belum pernah
-                                  // disave/Open.
+    // Scroll state (pixels)
+    int scrollX;
+    int scrollY;
+
+    char currentFilePath[MAX_PATH]; // Menyimpan path file saat ini. Jika string kosong, berarti file belum pernah disave/Open.
+    char recentFiles[MAX_RECENT_FILES][MAX_PATH];   // Array untuk menyimpan path string
+    int recentFileCount;             // Jumlah history yang ada saat ini
+
 
   BOOL isEdited;
   TextBuffer textBuffer;
