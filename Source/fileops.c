@@ -39,6 +39,7 @@ static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
     CloseHandle(hFile);
     return FALSE;
   }
+  buffer[bytesRead] = '\0'; // null terminator
   CloseHandle(hFile);
   Buffer_Clear(&s->textBuffer);
   Buffer_FromString(&s->textBuffer, buffer);
