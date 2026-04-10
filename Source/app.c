@@ -18,6 +18,13 @@ AppState *App_GetState(HWND hWnd)
   return (AppState *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 }
 
+void App_RefreshEditorAfterAction(HWND hWnd, AppState *s)
+{
+  Cursor_ResetBlink(hWnd, s);
+  Scroll_EnsureCursorVisible(hWnd);
+  InvalidateRect(hWnd, NULL, FALSE);
+}
+
 LRESULT App_OnCreate(HWND hWnd)
 {
   AppState *s = (AppState *)calloc(1, sizeof(AppState));
@@ -39,9 +46,12 @@ LRESULT App_OnCreate(HWND hWnd)
     return -1;
   }
 
+  // init state
   s->cursorVisible = TRUE;
+
   s->scrollX = 0;
   s->scrollY = 0;
+
   s->selection.active = 0;
   s->selection.start.row = 0;
   s->selection.start.col = 0;
@@ -142,9 +152,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
     {
       s->selection.active = 0;
-      Cursor_ResetBlink(hWnd, s);
-      Scroll_EnsureCursorVisible(hWnd);
-      InvalidateRect(hWnd, NULL, FALSE);
+      App_RefreshEditorAfterAction(hWnd, s);
       s->isEdited = TRUE;
     }
     return 0;
@@ -167,23 +175,12 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       Buffer_Delete(&s->textBuffer);
     }
     s->isEdited = TRUE;
-    Cursor_ResetBlink(hWnd, s);
-    Scroll_EnsureCursorVisible(hWnd);
-    InvalidateRect(hWnd, NULL, FALSE);
+    App_RefreshEditorAfterAction(hWnd, s);
     return 0;
 
   case ID_EDIT_SELECTALL:
-    s->selection.active = 1;
-    s->selection.start.row = 0;
-    s->selection.start.col = 0;
-    s->selection.end.row = s->textBuffer.lineCount - 1;
-    s->selection.end.col = s->textBuffer.lineLen[s->selection.end.row];
-
-    s->textBuffer.cursorRow = s->selection.end.row;
-    s->textBuffer.cursorCol = s->selection.end.col;
-    Cursor_ResetBlink(hWnd, s);
-    Scroll_EnsureCursorVisible(hWnd);
-    InvalidateRect(hWnd, NULL, FALSE);
+    Selection_SelectAll(s);
+    App_RefreshEditorAfterAction(hWnd, s);
     return 0;
 
   case ID_HELP_ABOUT:

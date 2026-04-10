@@ -50,9 +50,7 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
     }
 
     s->isEdited = TRUE;
-    Cursor_ResetBlink(hWnd, s);
-    Scroll_EnsureCursorVisible(hWnd);
-    InvalidateRect(hWnd, NULL, FALSE);
+    App_RefreshEditorAfterAction(hWnd, s);
     return 0;
 }
 
@@ -176,8 +174,6 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         Keyboard_ClearSelection(s);
     }
 
-    Cursor_ResetBlink(hWnd, s);
-    Scroll_EnsureCursorVisible(hWnd);
-    InvalidateRect(hWnd, NULL, FALSE);
+    App_RefreshEditorAfterAction(hWnd, s);
     return 0;
 }

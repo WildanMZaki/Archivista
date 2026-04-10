@@ -27,6 +27,9 @@ typedef struct AppState
 void App_AttachState(HWND hWnd, AppState *state);
 AppState *App_GetState(HWND hWnd);
 
+// Refresh editor UI after cursor/text/selection state changes.
+void App_RefreshEditorAfterAction(HWND hWnd, AppState *s);
+
 LRESULT App_OnCreate(HWND hWnd);
 LRESULT App_OnDestroy(HWND hWnd);
 LRESULT App_OnClose(HWND hWnd);
