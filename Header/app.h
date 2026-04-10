@@ -4,19 +4,19 @@
 #include <windows.h>
 #include "buffer.h"
 
-typedef struct
+typedef struct AppState
 {
-    HFONT editorFont;
+  HFONT editorFont;
 
-    BOOL cursorVisible; // blink state
-    int charWidth;
-    int charHeight;
+  BOOL cursorVisible; // blink state
+  int charWidth;
+  int charHeight;
 
-    // Scroll state (pixels)
-    int scrollX;
-    int scrollY;
+  // Scroll state (pixels)
+  int scrollX;
+  int scrollY;
 
-    char currentFilePath[MAX_PATH]; // Menyimpan path file saat ini. Jika string kosong, berarti file belum pernah disave/Open.
+  char currentFilePath[MAX_PATH]; // Menyimpan path file saat ini. Jika string kosong, berarti file belum pernah disave/Open.
 
   BOOL isEdited;
   TextBuffer textBuffer;
