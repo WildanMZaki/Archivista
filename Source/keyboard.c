@@ -1,15 +1,9 @@
 #include "../Header/keyboard.h"
 #include "../Header/app.h"
-#include "../Header/main.h"
+#include "../Header/cursor.h"
 #include "../Header/scroll.h"
 #include "../Header/shortcuts.h"
 #include <windows.h>
-
-static void Keyboard_ResetBlink(HWND hWnd, AppState *s)
-{
-    s->cursorVisible = TRUE;
-    SetTimer(hWnd, CURSOR_BLINK_TIMER_ID, CURSOR_BLINK_INTERVAL, NULL);
-}
 
 static void Keyboard_ClearSelection(AppState *s)
 {
@@ -56,7 +50,7 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
     }
 
     s->isEdited = TRUE;
-    Keyboard_ResetBlink(hWnd, s);
+    Cursor_ResetBlink(hWnd, s);
     Scroll_EnsureCursorVisible(hWnd);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;
@@ -174,8 +168,7 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         return DefWindowProc(hWnd, WM_KEYDOWN, wParam, lParam);
     }
 
-    s->textBuffer.cursorRow = row;
-    s->textBuffer.cursorCol = col;
+    Cursor_SetPosition(&s->textBuffer, row, col);
 
     if (wParam == VK_LEFT || wParam == VK_RIGHT || wParam == VK_UP || wParam == VK_DOWN ||
         wParam == VK_HOME || wParam == VK_END || wParam == VK_PRIOR || wParam == VK_NEXT)
@@ -183,7 +176,7 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         Keyboard_ClearSelection(s);
     }
 
-    Keyboard_ResetBlink(hWnd, s);
+    Cursor_ResetBlink(hWnd, s);
     Scroll_EnsureCursorVisible(hWnd);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;
