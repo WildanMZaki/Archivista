@@ -8,6 +8,7 @@ add_executable(Archivista WIN32
         Source/winproc.c
         Source/app.c
         Source/render.c
+        Source/cursor.c
         Source/keyboard.c
         Source/scroll.c
         Source/window.c
@@ -19,6 +20,7 @@ add_executable(Archivista WIN32
         Header/winproc.h
         Header/app.h
         Header/render.h
+        Header/cursor.h
         Header/keyboard.h
         Header/scroll.h
         Header/window.h
