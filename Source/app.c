@@ -1,25 +1,25 @@
 #include "../Header/app.h"
 #include "../Header/fileops.h"
+#include "../Header/cursor.h"
 #include "../Header/main.h"
 #include "../Header/menu.h"
 #include "../Header/render.h"
 #include "../Header/scroll.h"
+#include "../Header/selection.h"
 #include "../Header/recent.h"
 
-void App_AttachState(HWND hWnd, AppState *state) {
+void App_AttachState(HWND hWnd, AppState *state)
+{
   SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)state);
 }
 
-AppState *App_GetState(HWND hWnd) {
+AppState *App_GetState(HWND hWnd)
+{
   return (AppState *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 }
 
-static void App_ResetBlink(HWND hWnd, AppState *s) {
-  s->cursorVisible = TRUE;
-  SetTimer(hWnd, CURSOR_BLINK_TIMER_ID, CURSOR_BLINK_INTERVAL, NULL);
-}
-
-LRESULT App_OnCreate(HWND hWnd) {
+LRESULT App_OnCreate(HWND hWnd)
+{
   AppState *s = (AppState *)calloc(1, sizeof(AppState));
   if (!s)
     return -1;
@@ -33,7 +33,8 @@ LRESULT App_OnCreate(HWND hWnd) {
   SetMenu(hWnd, hMenu);
 
   s->editorFont = CustomFontCanvas(FONT_NAME, FONT_HEIGHT, FONT_WIDTH);
-  if (!s->editorFont) {
+  if (!s->editorFont)
+  {
     MessageBox(hWnd, "Font creation failed", "Error", MB_ICONERROR);
     return -1;
   }
@@ -57,11 +58,13 @@ LRESULT App_OnCreate(HWND hWnd) {
   return 0;
 }
 
-LRESULT App_OnDestroy(HWND hWnd) {
+LRESULT App_OnDestroy(HWND hWnd)
+{
   AppState *s = App_GetState(hWnd);
-  KillTimer(hWnd, CURSOR_BLINK_TIMER_ID);
+  Cursor_StopBlink(hWnd, s);
 
-  if (s) {
+  if (s)
+  {
     Buffer_Free(&s->textBuffer);
     if (s->editorFont)
       DeleteObject(s->editorFont);
@@ -74,53 +77,41 @@ LRESULT App_OnDestroy(HWND hWnd) {
   return 0;
 }
 
-LRESULT App_OnClose(HWND hWnd) {
+LRESULT App_OnClose(HWND hWnd)
+{
   AppState *s = App_GetState(hWnd);
-  if (!ConfirmSave(hWnd, s)) return 0;
+  if (!ConfirmSave(hWnd, s))
+    return 0;
   DestroyWindow(hWnd);
   return 0;
 }
 
-LRESULT App_OnSetFocus(HWND hWnd) {
+LRESULT App_OnSetFocus(HWND hWnd)
+{
   AppState *s = App_GetState(hWnd);
-  if (!s)
-    return 0;
-
-  SetTimer(hWnd, CURSOR_BLINK_TIMER_ID, CURSOR_BLINK_INTERVAL, NULL);
-  s->cursorVisible = TRUE;
-  InvalidateRect(hWnd, NULL, FALSE);
-  return 0;
+  return Cursor_OnSetFocus(hWnd, s);
 }
 
-LRESULT App_OnKillFocus(HWND hWnd) {
+LRESULT App_OnKillFocus(HWND hWnd)
+{
   AppState *s = App_GetState(hWnd);
-  if (!s)
-    return 0;
-
-  KillTimer(hWnd, CURSOR_BLINK_TIMER_ID);
-  s->cursorVisible = FALSE;
-  InvalidateRect(hWnd, NULL, FALSE);
-  return 0;
+  return Cursor_OnKillFocus(hWnd, s);
 }
 
-LRESULT App_OnTimer(HWND hWnd, WPARAM wParam) {
+LRESULT App_OnTimer(HWND hWnd, WPARAM wParam)
+{
   AppState *s = App_GetState(hWnd);
-  if (!s)
-    return 0;
-
-  if (wParam == CURSOR_BLINK_TIMER_ID) {
-    s->cursorVisible = !s->cursorVisible;
-    InvalidateRect(hWnd, NULL, FALSE);
-  }
-  return 0;
+  return Cursor_OnTimer(hWnd, wParam, s);
 }
 
-LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
+LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
+{
   AppState *s = App_GetState(hWnd);
   if (!s)
     return 0;
 
-  switch (LOWORD(wParam)) {
+  switch (LOWORD(wParam))
+  {
   case ID_FILE_NEW:
     FileOps_New(hWnd, s);
     return 0;
@@ -138,7 +129,8 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     return 0;
 
   case ID_FILE_EXIT:
-    if (!ConfirmSave(hWnd, s)) return 0;
+    if (!ConfirmSave(hWnd, s))
+      return 0;
     PostMessage(hWnd, WM_CLOSE, 0, 0);
     return 0;
 
@@ -147,9 +139,10 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     return 0;
 
   case ID_EDIT_CUT:
-    if (Buffer_DeleteSelection(&s->textBuffer, &s->selection)) {
+    if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
+    {
       s->selection.active = 0;
-      App_ResetBlink(hWnd, s);
+      Cursor_ResetBlink(hWnd, s);
       Scroll_EnsureCursorVisible(hWnd);
       InvalidateRect(hWnd, NULL, FALSE);
       s->isEdited = TRUE;
@@ -165,13 +158,16 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
     return 0;
 
   case ID_EDIT_DELETE:
-    if (Buffer_DeleteSelection(&s->textBuffer, &s->selection)) {
+    if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
+    {
       s->selection.active = 0;
-    } else {
+    }
+    else
+    {
       Buffer_Delete(&s->textBuffer);
     }
     s->isEdited = TRUE;
-    App_ResetBlink(hWnd, s);
+    Cursor_ResetBlink(hWnd, s);
     Scroll_EnsureCursorVisible(hWnd);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;
@@ -185,8 +181,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
 
     s->textBuffer.cursorRow = s->selection.end.row;
     s->textBuffer.cursorCol = s->selection.end.col;
-
-    App_ResetBlink(hWnd, s);
+    Cursor_ResetBlink(hWnd, s);
     Scroll_EnsureCursorVisible(hWnd);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;
@@ -199,12 +194,13 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
                "About Archivista", MB_OK | MB_ICONINFORMATION);
     return 0;
 
-    default:
-      if (LOWORD(wParam) >= ID_FILE_RECENT_START && LOWORD(wParam) <= ID_FILE_RECENT_END) {
-        int idIndex = LOWORD(wParam) - ID_FILE_RECENT_START;
-        FileOps_Open(hWnd, s, Recent_GetRecentPathByIndex(idIndex));
-        return 0;
-      }
+  default:
+    if (LOWORD(wParam) >= ID_FILE_RECENT_START && LOWORD(wParam) <= ID_FILE_RECENT_END)
+    {
+      int idIndex = LOWORD(wParam) - ID_FILE_RECENT_START;
+      FileOps_Open(hWnd, s, Recent_GetRecentPathByIndex(idIndex));
+      return 0;
+    }
   }
 
   return 0;
