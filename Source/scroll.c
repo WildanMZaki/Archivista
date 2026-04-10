@@ -1,5 +1,4 @@
 #include "../Header/scroll.h"
-#include "../Header/app.h"
 #include "../Header/main.h"
 
 void Scroll_EnsureCursorVisible(HWND hWnd)
@@ -39,6 +38,16 @@ void Scroll_EnsureCursorVisible(HWND hWnd)
 
     if (s->scrollX < 0)
         s->scrollX = 0;
+    if (s->scrollY < 0)
+        s->scrollY = 0;
+}
+
+void Scroll_Vertical(AppState *s, WPARAM wParam)
+{
+    if (!s) return;
+
+    int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+    s->scrollY -= (delta / WHEEL_DELTA) * s->charHeight * 3;
     if (s->scrollY < 0)
         s->scrollY = 0;
 }
