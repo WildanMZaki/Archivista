@@ -3,6 +3,7 @@
 #include "../Header/app.h"
 #include "../Header/selection.h"
 #include "../Header/cursor.h"
+#include "../Header/scroll.h"
 
 static DWORD s_lastDblClkTime = 0;
 static BOOL s_isWordLineSelection = FALSE;
@@ -120,11 +121,7 @@ LRESULT Mouse_OnMouseWheel(HWND hWnd, WPARAM wParam, LPARAM lParam)
     if (!s)
         return 0;
 
-    int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-    s->scrollY -= (delta / WHEEL_DELTA) * s->charHeight * 3;
-    if (s->scrollY < 0)
-        s->scrollY = 0;
-
+    Scroll_Vertical(s, wParam);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;
 }
