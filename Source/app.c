@@ -4,7 +4,7 @@
 #include "../Header/menu.h"
 #include "../Header/render.h"
 #include "../Header/scroll.h"
-#include <stdlib.h>
+#include "../Header/recent.h"
 
 void App_AttachState(HWND hWnd, AppState *state) {
   SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)state);
@@ -48,6 +48,9 @@ LRESULT App_OnCreate(HWND hWnd) {
   s->selection.end.col = 0;
 
   Render_CalcCharSize(hWnd);
+
+  Recent_LoadRecent(s);
+  Recent_UpdateMenuRecent(hMenu, s);
 
   // Blink timer mulai ketika focus (behaviour sama seperti sebelumnya:
   // WM_SETFOCUS start)
@@ -195,6 +198,13 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam) {
                "Proyek 2 - Teknik Informatika",
                "About Archivista", MB_OK | MB_ICONINFORMATION);
     return 0;
+
+    default:
+      if (LOWORD(wParam) >= ID_FILE_RECENT_START && LOWORD(wParam) <= ID_FILE_RECENT_END) {
+        int idIndex = LOWORD(wParam) - ID_FILE_RECENT_START;
+        FileOps_Open(hWnd, s, Recent_GetRecentPathByIndex(idIndex));
+        return 0;
+      }
   }
 
   return 0;
