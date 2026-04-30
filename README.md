@@ -27,9 +27,14 @@ Pastikan tools berikut sudah terinstall sebelum memulai setup project:
 | ------------- | ------------------------ | ------------------------------------------------- |
 | **MinGW-w64** | C Compiler untuk Windows | [winlibs.com](https://winlibs.com/)               |
 | **CMake**     | Build system             | [cmake.org/download](https://cmake.org/download/) |
+| **Ninja**     | Build executor cepat     | [ninja-build.org](https://ninja-build.org/)       |
 | **Git**       | Version control          | [git-scm.com](https://git-scm.com/)               |
 
-Pastikan `mingw64\bin` dan `cmake\bin` sudah ditambahkan ke **System Environment Variable PATH**.
+CMake dipakai untuk membaca konfigurasi project (`CMakeLists.txt`) lalu menghasilkan file build sesuai generator yang dipilih (misalnya `Ninja`).
+
+Ninja dipakai untuk mengeksekusi proses compile/link saat project dibangkitkan dengan generator `Ninja` (contoh: `cmake -G "Ninja" ...`).
+
+Pastikan `mingw64\bin`, `cmake\bin`, dan folder binary `ninja` sudah ditambahkan ke **System Environment Variable PATH**.
 
 Contoh path MinGW: `D:\apps\winlibs\mingw64\bin`
 
@@ -38,6 +43,7 @@ Untuk memverifikasi instalasi, jalankan perintah berikut di terminal:
 ```bash
 gcc --version
 cmake --version
+ninja --version
 ```
 
 ---
