@@ -60,8 +60,8 @@ LRESULT App_OnCreate(HWND hWnd)
 
   Render_CalcCharSize(hWnd);
 
-  Recent_LoadRecent(s);
-  Recent_UpdateMenuRecent(hMenu, s);
+  Recent_LoadRecent();
+  Recent_UpdateMenuRecent(hMenu);
 
   // Blink timer mulai ketika focus (behaviour sama seperti sebelumnya:
   // WM_SETFOCUS start)
@@ -83,6 +83,7 @@ LRESULT App_OnDestroy(HWND hWnd)
     App_AttachState(hWnd, NULL);
   }
 
+  Recent_FreeAllNode();
   PostQuitMessage(0);
   return 0;
 }
