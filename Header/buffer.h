@@ -11,6 +11,8 @@ typedef struct
     char lines[BUF_MAX_LINES][BUF_MAX_COLS];
     int lineLen[BUF_MAX_LINES]; // panjang aktual tiap baris (tanpa '\0')
 
+    char *initSnapshot;
+
     int lineCount; // minimal 1
     int cursorRow;
     int cursorCol;
@@ -33,6 +35,9 @@ typedef struct
 void Buffer_Init(TextBuffer *buf);
 void Buffer_Free(TextBuffer *buf);  // untuk static: reset/no-op
 void Buffer_Clear(TextBuffer *buf); // reset jadi 1 baris kosong
+void Buffer_SetInitBuffer(TextBuffer *buf);
+int Buffer_IsBufferChanged(const TextBuffer *buf);
+int Buffer_IsBufferSavable(const TextBuffer *buf);
 
 // ========== Text Editing ==========
 void Buffer_InsertChar(TextBuffer *buf, char c);
@@ -47,7 +52,7 @@ char *Buffer_GetSelectedString(const TextBuffer *buf, const TextSelection *sel);
 int Buffer_DeleteSelection(TextBuffer *buf, const TextSelection *sel);           // Return 1 if deleted
 
 // ========== Conversion ==========
-char *Buffer_ToString(TextBuffer *buf); // Caller must free() the result
+char *Buffer_ToString(const TextBuffer *buf); // Caller must free() the result
 void Buffer_FromString(TextBuffer *buf, const char *str);
 
 #endif // ARCHIVISTA_BUFFER_H

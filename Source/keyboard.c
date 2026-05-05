@@ -49,7 +49,7 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
         Buffer_InsertChar(&s->textBuffer, c);
     }
 
-    s->isEdited = TRUE;
+    App_SyncEditedState(s);
     App_RefreshEditorAfterAction(hWnd, s);
     return 0;
 }
@@ -159,7 +159,7 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         {
             Buffer_Delete(&s->textBuffer);
         }
-        s->isEdited = TRUE;
+        App_SyncEditedState(s);
         break;
 
     default:

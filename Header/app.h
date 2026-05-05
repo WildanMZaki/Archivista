@@ -26,6 +26,7 @@ typedef struct AppState
 // Store/retrieve state via GWLP_USERDATA
 void App_AttachState(HWND hWnd, AppState *state);
 AppState *App_GetState(HWND hWnd);
+void App_SyncEditedState(AppState *s);
 
 // Refresh editor UI after cursor/text/selection state changes.
 void App_RefreshEditorAfterAction(HWND hWnd, AppState *s);

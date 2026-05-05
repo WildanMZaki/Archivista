@@ -18,6 +18,14 @@ AppState *App_GetState(HWND hWnd)
   return (AppState *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 }
 
+void App_SyncEditedState(AppState *s)
+{
+  if (!s)
+    return;
+
+  s->isEdited = Buffer_IsBufferChanged(&s->textBuffer);
+}
+
 void App_RefreshEditorAfterAction(HWND hWnd, AppState *s)
 {
   Cursor_ResetBlink(hWnd, s);
@@ -34,7 +42,7 @@ LRESULT App_OnCreate(HWND hWnd)
   App_AttachState(hWnd, s);
   Buffer_Init(&s->textBuffer);
 
-  s->isEdited = FALSE;
+  App_SyncEditedState(s);
 
   HMENU hMenu = CreateAppMenu();
   SetMenu(hWnd, hMenu);
@@ -154,7 +162,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     {
       s->selection.active = 0;
       App_RefreshEditorAfterAction(hWnd, s);
-      s->isEdited = TRUE;
+      App_SyncEditedState(s);
     }
     return 0;
 
@@ -175,7 +183,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     {
       Buffer_Delete(&s->textBuffer);
     }
-    s->isEdited = TRUE;
+    App_SyncEditedState(s);
     App_RefreshEditorAfterAction(hWnd, s);
     return 0;
 
