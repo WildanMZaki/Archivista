@@ -1,6 +1,7 @@
 #include "../Header/fileops.h"
 #include "../Header/buffer.h"
 #include "../Header/recent.h"
+#include "../Header/cursor.h"
 
 static OPENFILENAME InitOpenFile(HWND hWnd, AppState *s) {
   OPENFILENAME ofn = {sizeof(OPENFILENAME)};
@@ -50,7 +51,8 @@ static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
 }
 
 BOOL ConfirmSave(HWND hWnd, AppState *s) {
-  if (s->isEdited) {
+  App_SyncEditedState(s);
+  if (Buffer_IsBufferSavable(&s->textBuffer)) {
     int msgboxID = MessageBox(
         hWnd,
         "The document has been modified. Do you want to save the changes?",
@@ -67,20 +69,14 @@ BOOL ConfirmSave(HWND hWnd, AppState *s) {
   return TRUE;
 }
 
-static void ResetCursor(HWND hWnd, AppState *s) {
-  s->selection.active = 0;           // Disable Selection
-  s->scrollX = 0;                    // Reset Scroll X
-  s->scrollY = 0;                    // Reset Scroll Y
-  InvalidateRect(hWnd, NULL, FALSE); // Refresh Screen
-}
-
 void FileOps_New(HWND hWnd, AppState *s) {
   if (!ConfirmSave(hWnd, s)) return;
 
   Buffer_Clear(&s->textBuffer); // Clear Buffer
   s->currentFilePath[0] = '\0'; // Reset Current File Path
-  ResetCursor(hWnd, s);
-  s->isEdited = FALSE;
+  Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
+  App_RefreshEditorAfterAction(hWnd, s);
+  App_SyncEditedState(s);
 }
 
 void FileOps_Open(HWND hWnd, AppState *s, char *path) {
@@ -99,8 +95,9 @@ void FileOps_Open(HWND hWnd, AppState *s, char *path) {
       }
     }
   }
-  ResetCursor(hWnd, s);
-  s->isEdited = FALSE;
+  Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
+  App_RefreshEditorAfterAction(hWnd, s);
+  App_SyncEditedState(s);
 }
 
 void FileOps_Save(HWND hWnd, AppState *s) {
@@ -122,7 +119,7 @@ void FileOps_Save(HWND hWnd, AppState *s) {
     CloseHandle(hFile);
     return;
   }
-  s->isEdited = FALSE;
+  App_SyncEditedState(s);
   free(strBuf);
   CloseHandle(hFile);
   Recent_AddRecent(s->currentFilePath);
@@ -149,7 +146,7 @@ void FileOps_SaveAs(HWND hWnd, AppState *s) {
       CloseHandle(hFile);
       return;
     }
-    s->isEdited = FALSE;
+    App_SyncEditedState(s);
     free(strBuf);
     CloseHandle(hFile);
     Recent_AddRecent(ofn.lpstrFile);
