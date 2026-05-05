@@ -8,6 +8,8 @@
 #define ID_FILE_SAVE 1003
 #define ID_FILE_SAVEAS 1004
 #define ID_FILE_EXIT 1005
+#define ID_FILE_RECENT_START 1101 //file history
+#define ID_FILE_RECENT_END 1105
 
 // Edit menu
 #define ID_EDIT_UNDO 2001

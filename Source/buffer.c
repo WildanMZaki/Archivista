@@ -46,19 +46,48 @@ static void Buffer_SetLineEmpty(TextBuffer *buf, int row)
     buf->lineLen[row] = 0;
 }
 
+static void Buffer_ReleaseInitSnapshot(TextBuffer *buf)
+{
+    if (!buf)
+        return;
+
+    free(buf->initSnapshot);
+    buf->initSnapshot = NULL;
+}
+
+static char *Buffer_DuplicateString(const char *str)
+{
+    size_t len;
+    char *copy;
+
+    if (!str)
+        str = "";
+
+    len = strlen(str);
+    copy = (char *)malloc(len + 1);
+    if (!copy)
+        return NULL;
+
+    memcpy(copy, str, len + 1);
+    return copy;
+}
+
 void Buffer_Init(TextBuffer *buf)
 {
     // Minimal 1 baris kosong
+    buf->initSnapshot = NULL;
     buf->lineCount = 1;
     buf->cursorRow = 0;
     buf->cursorCol = 0;
 
     Buffer_SetLineEmpty(buf, 0);
+    Buffer_SetInitBuffer(buf);
 }
 
 void Buffer_Free(TextBuffer *buf)
 {
     // Static buffer: tidak ada free. Reset saja biar konsisten.
+    Buffer_ReleaseInitSnapshot(buf);
     Buffer_Clear(buf);
 }
 
@@ -68,6 +97,51 @@ void Buffer_Clear(TextBuffer *buf)
     buf->cursorRow = 0;
     buf->cursorCol = 0;
     Buffer_SetLineEmpty(buf, 0);
+}
+
+void Buffer_SetInitBuffer(TextBuffer *buf)
+{
+    char *snapshot;
+
+    if (!buf)
+        return;
+
+    snapshot = Buffer_ToString(buf);
+    if (!snapshot)
+        return;
+
+    Buffer_ReleaseInitSnapshot(buf);
+    buf->initSnapshot = snapshot;
+}
+
+int Buffer_IsBufferChanged(const TextBuffer *buf)
+{
+    char *current;
+    int changed;
+
+    if (!buf)
+        return 0;
+
+    current = Buffer_ToString((TextBuffer *)buf);
+    if (!current)
+        return 1;
+
+    if (!buf->initSnapshot)
+    {
+        changed = current[0] != '\0';
+    }
+    else
+    {
+        changed = strcmp(current, buf->initSnapshot) != 0;
+    }
+
+    free(current);
+    return changed;
+}
+
+int Buffer_IsBufferSavable(const TextBuffer *buf)
+{
+    return Buffer_IsBufferChanged(buf);
 }
 
 void Buffer_InsertChar(TextBuffer *buf, char c)
@@ -425,7 +499,7 @@ int Buffer_DeleteSelection(TextBuffer *buf, const TextSelection *sel)
     return 1;
 }
 
-char *Buffer_ToString(TextBuffer *buf)
+char *Buffer_ToString(const TextBuffer *buf)
 {
     int totalLen = 0;
     for (int i = 0; i < buf->lineCount; i++)

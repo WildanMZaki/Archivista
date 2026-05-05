@@ -9,6 +9,8 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam,
   switch (message) {
   case WM_CREATE:
     return App_OnCreate(hWnd);
+  case WM_CLOSE:
+    return App_OnClose(hWnd);
   case WM_DESTROY:
     return App_OnDestroy(hWnd);
 
