@@ -7,6 +7,7 @@
 #include "../Header/scroll.h"
 #include "../Header/selection.h"
 #include "../Header/recent.h"
+#include "../Header/clipboard.h"
 #include <string.h>
 
 void App_AttachState(HWND hWnd, AppState *state)
@@ -229,6 +230,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     {
       HistoryAction del = History_CreateDeleteAction(sel, s->selection.start.row, s->selection.start.col);
       History_PushAction(&s->history, del);
+      Clipboard_Copy(hWnd, sel);
       free(sel);
       Buffer_DeleteSelection(&s->textBuffer, &s->selection);
       s->selection.active = 0;
@@ -239,13 +241,19 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   }
 
   case ID_EDIT_COPY:
-    MessageBox(hWnd, "Copy - belum diimplementasi", "Info", MB_OK);
+    char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
+    if (sel)
+    {
+      Clipboard_Copy(hWnd, sel);
+      free(sel);
+    }
     return 0;
 
   case ID_EDIT_PASTE:
   {
-    // TODO: Ganti dengan clipboard function
-    const char *clipboardText = "Hello World\nTest Paste\nLine 3";
+    const char *clipboardText = Clipboard_Paste(hWnd);
+    if (!clipboardText)
+      return 0; // Nothing to paste
 
     // Insert string (with selection handling)
     InsertStringResult insertResult = Buffer_InsertString(&s->textBuffer, clipboardText, &s->selection);
@@ -309,6 +317,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     // Cleanup
     Buffer_FreeInsertStringResult(&insertResult);
+    free(clipboardText);
 
     // Update UI
     s->selection.active = 0;
