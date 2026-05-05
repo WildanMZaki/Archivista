@@ -16,6 +16,7 @@ HMENU CreateAppMenu(void)
     // Edit Menu
     HMENU hEditMenu = CreatePopupMenu();
     AppendMenu(hEditMenu, MF_STRING, ID_EDIT_UNDO, "Undo\tCtrl+Z");
+    AppendMenu(hEditMenu, MF_STRING, ID_EDIT_REDO, "Redo\tCtrl+Y");
     AppendMenu(hEditMenu, MF_SEPARATOR, 0, NULL);
     AppendMenu(hEditMenu, MF_STRING, ID_EDIT_CUT, "Cut\tCtrl+X");
     AppendMenu(hEditMenu, MF_STRING, ID_EDIT_COPY, "Copy\tCtrl+C");
