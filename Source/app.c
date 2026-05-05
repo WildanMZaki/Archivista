@@ -7,6 +7,7 @@
 #include "../Header/scroll.h"
 #include "../Header/selection.h"
 #include "../Header/recent.h"
+#include "../Header/clipboard.h"
 
 void App_AttachState(HWND hWnd, AppState *state)
 {
@@ -228,6 +229,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     {
       HistoryAction del = History_CreateDeleteAction(sel, s->selection.start.row, s->selection.start.col);
       History_PushAction(&s->history, del);
+      Clipboard_Copy(hWnd, sel);
       free(sel);
       Buffer_DeleteSelection(&s->textBuffer, &s->selection);
       s->selection.active = 0;
@@ -238,11 +240,17 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   }
 
   case ID_EDIT_COPY:
-    MessageBox(hWnd, "Copy - belum diimplementasi", "Info", MB_OK);
+      char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
+      if (sel)
+      {
+        Clipboard_Copy(hWnd, sel);
+        free(sel);
+      }
     return 0;
 
   case ID_EDIT_PASTE:
-    MessageBox(hWnd, "Paste - belum diimplementasi", "Info", MB_OK);
+    char *buffer = Clipboard_Paste(hWnd); // waiting for api to buffer insert string
+    free(buffer);
     return 0;
 
   case ID_EDIT_DELETE:
