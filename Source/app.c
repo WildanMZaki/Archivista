@@ -154,17 +154,88 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     return 0;
 
   case ID_EDIT_UNDO:
-    MessageBox(hWnd, "Undo - belum diimplementasi", "Info", MB_OK);
+    if (History_CanUndo(&s->history))
+    {
+      HistoryAction undoAction;
+      if (History_Undo(&s->history, &s->textBuffer, &undoAction))
+      {
+        /* Apply reverse action to buffer */
+        Cursor_SetPosition(&s->textBuffer, undoAction.row, undoAction.col);
+
+        if (undoAction.type == HISTORY_ACTION_INSERT)
+        {
+          /* Reverse INSERT by deleting that text */
+          for (int i = 0; i < (int)strlen(undoAction.text); i++)
+            Buffer_Delete(&s->textBuffer);
+        }
+        else if (undoAction.type == HISTORY_ACTION_DELETE)
+        {
+          /* Reverse DELETE by inserting that text */
+          for (int i = 0; undoAction.text[i]; i++)
+          {
+            if (undoAction.text[i] == '\n')
+              Buffer_InsertNewline(&s->textBuffer);
+            else
+              Buffer_InsertChar(&s->textBuffer, undoAction.text[i]);
+          }
+        }
+
+        s->selection.active = 0;
+        App_SyncEditedState(s);
+        App_RefreshEditorAfterAction(hWnd, s);
+      }
+    }
+    return 0;
+
+  case ID_EDIT_REDO:
+    if (History_CanRedo(&s->history))
+    {
+      HistoryAction redoAction;
+      if (History_Redo(&s->history, &s->textBuffer, &redoAction))
+      {
+        /* Apply action to buffer (also reverse, since redoStack contains reversed actions) */
+        Cursor_SetPosition(&s->textBuffer, redoAction.row, redoAction.col);
+
+        if (redoAction.type == HISTORY_ACTION_DELETE)
+        {
+          /* Reverse DELETE by inserting that text */
+          for (int i = 0; redoAction.text[i]; i++)
+          {
+            if (redoAction.text[i] == '\n')
+              Buffer_InsertNewline(&s->textBuffer);
+            else
+              Buffer_InsertChar(&s->textBuffer, redoAction.text[i]);
+          }
+        }
+        else if (redoAction.type == HISTORY_ACTION_INSERT)
+        {
+          /* Reverse INSERT by deleting that text */
+          for (int i = 0; i < (int)strlen(redoAction.text); i++)
+            Buffer_Delete(&s->textBuffer);
+        }
+
+        s->selection.active = 0;
+        App_SyncEditedState(s);
+        App_RefreshEditorAfterAction(hWnd, s);
+      }
+    }
     return 0;
 
   case ID_EDIT_CUT:
-    if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
+  {
+    char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
+    if (sel)
     {
+      HistoryAction del = History_CreateDeleteAction(sel, s->selection.start.row, s->selection.start.col);
+      History_PushAction(&s->history, del);
+      free(sel);
+      Buffer_DeleteSelection(&s->textBuffer, &s->selection);
       s->selection.active = 0;
       App_RefreshEditorAfterAction(hWnd, s);
       App_SyncEditedState(s);
     }
     return 0;
+  }
 
   case ID_EDIT_COPY:
     MessageBox(hWnd, "Copy - belum diimplementasi", "Info", MB_OK);

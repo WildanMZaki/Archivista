@@ -23,6 +23,10 @@ typedef struct AppState
   TextBuffer textBuffer;
   TextSelection selection;
   EditHistory history;
+
+  // For tracking composition of actions (e.g., multi-char insert)
+  BOOL isComposingAction;
+  HistoryAction currentAction;
 } AppState;
 
 // Store/retrieve state via GWLP_USERDATA
