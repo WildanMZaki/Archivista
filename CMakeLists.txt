@@ -8,6 +8,7 @@ add_executable(Archivista WIN32
         Source/buffer.c
         Source/cursor.c
         Source/fileops.c
+        Source/history.c
         Source/keyboard.c
         Source/main.c
         Source/menu.c
@@ -19,11 +20,13 @@ add_executable(Archivista WIN32
         Source/shortcuts.c
         Source/window.c
         Source/winproc.c
+        Source/stack/stack.c
 
         Header/app.h
         Header/buffer.h
         Header/cursor.h
         Header/fileops.h
+        Header/history.h
         Header/keyboard.h
         Header/main.h
         Header/menu.h

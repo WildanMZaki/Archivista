@@ -2,273 +2,190 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void HistoryStack_Clear(HistoryStack *stack)
+/* Create insert action */
+HistoryAction History_CreateInsertAction(const char *text, int row, int col)
 {
-    if (!stack)
-        return;
+    HistoryAction action;
+    action.type = HISTORY_ACTION_INSERT;
+    action.row = row;
+    action.col = col;
 
-    for (int i = 0; i < stack->count; i++)
+    if (text && strlen(text) < HISTORY_ACTION_BUFFER_SIZE)
     {
-        int index = (stack->start + i) % HISTORY_CAPACITY;
-        HistorySnapshot_Free(&stack->items[index]);
+        strcpy_s(action.text, HISTORY_ACTION_BUFFER_SIZE, text);
+    }
+    else
+    {
+        action.text[0] = '\0';
     }
 
-    stack->start = 0;
-    stack->count = 0;
+    return action;
 }
 
-static int HistoryStack_TopIndex(const HistoryStack *stack)
+/* Create delete action */
+HistoryAction History_CreateDeleteAction(const char *text, int row, int col)
 {
-    if (!stack || stack->count <= 0)
-        return -1;
+    HistoryAction action;
+    action.type = HISTORY_ACTION_DELETE;
+    action.row = row;
+    action.col = col;
 
-    return (stack->start + stack->count - 1) % HISTORY_CAPACITY;
-}
-
-static int HistoryStack_IsEmpty(const HistoryStack *stack)
-{
-    return !stack || stack->count <= 0;
-}
-
-static int HistorySnapshot_Equals(const HistorySnapshot *a, const HistorySnapshot *b);
-
-static void HistoryStack_Push(HistoryStack *stack, HistorySnapshot snapshot)
-{
-    if (!stack)
+    if (text && strlen(text) < HISTORY_ACTION_BUFFER_SIZE)
     {
-        HistorySnapshot_Free(&snapshot);
-        return;
+        strcpy_s(action.text, HISTORY_ACTION_BUFFER_SIZE, text);
+    }
+    else
+    {
+        action.text[0] = '\0';
     }
 
-    if (stack->count > 0)
-    {
-        int topIndex = HistoryStack_TopIndex(stack);
-        if (topIndex >= 0 && HistorySnapshot_Equals(&stack->items[topIndex], &snapshot))
-        {
-            HistorySnapshot_Free(&snapshot);
-            return;
-        }
-    }
-
-    if (stack->count == HISTORY_CAPACITY)
-    {
-        HistorySnapshot_Free(&stack->items[stack->start]);
-        stack->items[stack->start] = snapshot;
-        stack->start = (stack->start + 1) % HISTORY_CAPACITY;
-        return;
-    }
-
-    int index = (stack->start + stack->count) % HISTORY_CAPACITY;
-    stack->items[index] = snapshot;
-    stack->count++;
+    return action;
 }
 
-static int HistoryStack_Pop(HistoryStack *stack, HistorySnapshot *outSnapshot)
-{
-    if (!stack || !outSnapshot || stack->count <= 0)
-        return 0;
-
-    int index = (stack->start + stack->count - 1) % HISTORY_CAPACITY;
-    *outSnapshot = stack->items[index];
-    stack->items[index].text = NULL;
-    stack->count--;
-    return 1;
-}
-
-static int HistorySnapshot_Equals(const HistorySnapshot *a, const HistorySnapshot *b)
-{
-    if (!a || !b)
-        return 0;
-
-    if (a->cursorRow != b->cursorRow || a->cursorCol != b->cursorCol)
-        return 0;
-
-    if (a->selection.active != b->selection.active)
-        return 0;
-
-    if (a->selection.start.row != b->selection.start.row ||
-        a->selection.start.col != b->selection.start.col ||
-        a->selection.end.row != b->selection.end.row ||
-        a->selection.end.col != b->selection.end.col)
-        return 0;
-
-    if (!a->text || !b->text)
-        return a->text == b->text;
-
-    return strcmp(a->text, b->text) == 0;
-}
-
-static void History_ApplySnapshot(TextBuffer *buffer, TextSelection *selection, const HistorySnapshot *snapshot)
-{
-    if (!buffer || !selection || !snapshot)
-        return;
-
-    Buffer_FromString(buffer, snapshot->text ? snapshot->text : "");
-    buffer->cursorRow = snapshot->cursorRow;
-    buffer->cursorCol = snapshot->cursorCol;
-    *selection = snapshot->selection;
-}
-
-HistorySnapshot History_Capture(const TextBuffer *buffer, const TextSelection *selection)
-{
-    HistorySnapshot snapshot;
-    snapshot.text = NULL;
-    snapshot.selection.active = 0;
-    snapshot.selection.start.row = 0;
-    snapshot.selection.start.col = 0;
-    snapshot.selection.end.row = 0;
-    snapshot.selection.end.col = 0;
-    snapshot.cursorRow = 0;
-    snapshot.cursorCol = 0;
-
-    if (buffer)
-    {
-        snapshot.text = Buffer_ToString((TextBuffer *)buffer);
-        snapshot.cursorRow = buffer->cursorRow;
-        snapshot.cursorCol = buffer->cursorCol;
-    }
-
-    if (selection)
-        snapshot.selection = *selection;
-
-    return snapshot;
-}
-
-void HistorySnapshot_Free(HistorySnapshot *snapshot)
-{
-    if (!snapshot)
-        return;
-
-    free(snapshot->text);
-    snapshot->text = NULL;
-}
-
+/* Init history */
 void History_Init(EditHistory *history)
 {
     if (!history)
         return;
 
-    history->undoStack.start = 0;
-    history->undoStack.count = 0;
-    history->redoStack.start = 0;
-    history->redoStack.count = 0;
+    CreateStack(&history->undoStack);
+    CreateStack(&history->redoStack);
 }
 
+/* Free history */
 void History_Free(EditHistory *history)
 {
     if (!history)
         return;
 
-    HistoryStack_Clear(&history->undoStack);
-    HistoryStack_Clear(&history->redoStack);
+    DeleteAll(&history->undoStack);
+    DeleteAll(&history->redoStack);
 }
 
+/* Clear history */
 void History_Clear(EditHistory *history)
 {
     History_Free(history);
     History_Init(history);
 }
 
-int History_CanUndo(const EditHistory *history)
+/* Check if can undo */
+bool History_CanUndo(const EditHistory *history)
 {
-    return history && !HistoryStack_IsEmpty(&history->undoStack);
+    if (!history)
+        return false;
+
+    return !isStackEmpty(history->undoStack);
 }
 
-int History_CanRedo(const EditHistory *history)
+/* Check if can redo */
+bool History_CanRedo(const EditHistory *history)
 {
-    return history && !HistoryStack_IsEmpty(&history->redoStack);
+    if (!history)
+        return false;
+
+    return !isStackEmpty(history->redoStack);
 }
 
-void History_PushCurrentState(EditHistory *history, const TextBuffer *buffer, const TextSelection *selection)
+/* Push action ke undo stack per event */
+void History_PushAction(EditHistory *history, HistoryAction action)
 {
     if (!history)
         return;
 
-    HistorySnapshot snapshot = History_Capture(buffer, selection);
-    if (!snapshot.text)
+    if (action.text[0] == '\0' && action.type != HISTORY_ACTION_INSERT)
         return;
 
-    HistoryStack_Push(&history->undoStack, snapshot);
-    HistoryStack_Clear(&history->redoStack);
+    Push(&history->undoStack, &action, sizeof(HistoryAction));
+
+    /* Clear redo stack saat ada action baru */
+    DeleteAll(&history->redoStack);
 }
 
-int History_RecordChange(EditHistory *history, HistorySnapshot *before, const TextBuffer *afterBuffer, const TextSelection *afterSelection)
+/* Perform undo */
+bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction)
 {
-    HistorySnapshot after;
-    int changed;
+    HistoryAction *currentAction;
+    HistoryAction reverseAction;
+    void *popData;
+    int popSize;
 
-    if (!history || !before)
+    if (!history || !buffer || !outAction)
+        return false;
+
+    if (!History_CanUndo(history))
+        return false;
+
+    /* Pop dari undo stack */
+    if (!Pop(&history->undoStack, &popData, &popSize))
+        return false;
+
+    if (popSize != sizeof(HistoryAction))
     {
-        HistorySnapshot_Free(before);
-        return 0;
+        free(popData);
+        return false;
     }
 
-    after = History_Capture(afterBuffer, afterSelection);
-    if (!after.text)
+    currentAction = (HistoryAction *)popData;
+    *outAction = *currentAction;
+
+    /* Create reverse action untuk redo */
+    if (currentAction->type == HISTORY_ACTION_INSERT)
     {
-        HistorySnapshot_Free(before);
-        return 0;
+        reverseAction = History_CreateDeleteAction(currentAction->text, currentAction->row, currentAction->col);
+    }
+    else
+    {
+        reverseAction = History_CreateInsertAction(currentAction->text, currentAction->row, currentAction->col);
     }
 
-    changed = !HistorySnapshot_Equals(before, &after);
-    HistorySnapshot_Free(&after);
+    /* Push reverse action ke redo stack */
+    Push(&history->redoStack, &reverseAction, sizeof(HistoryAction));
 
-    if (!changed)
-    {
-        HistorySnapshot_Free(before);
-        return 0;
-    }
-
-    HistoryStack_Push(&history->undoStack, *before);
-    before->text = NULL;
-    HistoryStack_Clear(&history->redoStack);
-    return 1;
+    free(popData);
+    return true;
 }
 
-int History_Undo(EditHistory *history, TextBuffer *buffer, TextSelection *selection)
+/* Perform redo */
+bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction)
 {
-    HistorySnapshot current;
-    HistorySnapshot target;
+    HistoryAction *redoAction;
+    HistoryAction reverseAction;
+    void *popData;
+    int popSize;
 
-    if (!history || !buffer || !selection || HistoryStack_IsEmpty(&history->undoStack))
-        return 0;
+    if (!history || !buffer || !outAction)
+        return false;
 
-    current = History_Capture(buffer, selection);
-    if (!current.text)
-        return 0;
+    if (!History_CanRedo(history))
+        return false;
 
-    if (!HistoryStack_Pop(&history->undoStack, &target))
+    /* Pop dari redo stack */
+    if (!Pop(&history->redoStack, &popData, &popSize))
+        return false;
+
+    if (popSize != sizeof(HistoryAction))
     {
-        HistorySnapshot_Free(&current);
-        return 0;
+        free(popData);
+        return false;
     }
 
-    HistoryStack_Push(&history->redoStack, current);
-    History_ApplySnapshot(buffer, selection, &target);
-    HistorySnapshot_Free(&target);
-    return 1;
-}
+    redoAction = (HistoryAction *)popData;
+    *outAction = *redoAction;
 
-int History_Redo(EditHistory *history, TextBuffer *buffer, TextSelection *selection)
-{
-    HistorySnapshot current;
-    HistorySnapshot target;
-
-    if (!history || !buffer || !selection || HistoryStack_IsEmpty(&history->redoStack))
-        return 0;
-
-    current = History_Capture(buffer, selection);
-    if (!current.text)
-        return 0;
-
-    if (!HistoryStack_Pop(&history->redoStack, &target))
+    /* Create reverse action untuk undo */
+    if (redoAction->type == HISTORY_ACTION_INSERT)
     {
-        HistorySnapshot_Free(&current);
-        return 0;
+        reverseAction = History_CreateDeleteAction(redoAction->text, redoAction->row, redoAction->col);
+    }
+    else
+    {
+        reverseAction = History_CreateInsertAction(redoAction->text, redoAction->row, redoAction->col);
     }
 
-    HistoryStack_Push(&history->undoStack, current);
-    History_ApplySnapshot(buffer, selection, &target);
-    HistorySnapshot_Free(&target);
-    return 1;
+    /* Push reverse action ke undo stack */
+    Push(&history->undoStack, &reverseAction, sizeof(HistoryAction));
+
+    free(popData);
+    return true;
 }
