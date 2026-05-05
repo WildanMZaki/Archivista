@@ -317,7 +317,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     // Cleanup
     Buffer_FreeInsertStringResult(&insertResult);
-    free(clipboardText);
+    free((void *)clipboardText);
 
     // Update UI
     s->selection.active = 0;
