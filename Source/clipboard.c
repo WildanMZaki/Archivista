@@ -24,7 +24,9 @@ char *Clipboard_Paste(HWND hWnd) {
     if (hMem) {
         char *buffer = GlobalLock(hMem);
         result = _strdup(buffer);
+        GlobalUnlock(hMem);
     }
+
 
     CloseClipboard();
     return result;
