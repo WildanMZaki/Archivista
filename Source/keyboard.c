@@ -99,12 +99,16 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
                 /* Delete character before cursor */
                 action.delete.text[0] = s->textBuffer.lines[row][col - 1];
                 action.delete.text[1] = '\0';
+                action.delete.row = row;
+                action.delete.col = col - 1;
             }
             else if (row > 0)
             {
                 /* Delete newline from previous line */
                 action.delete.text[0] = '\n';
                 action.delete.text[1] = '\0';
+                action.delete.row = row - 1;
+                action.delete.col = s->textBuffer.lineLen[row - 1];
             }
             else
             {
