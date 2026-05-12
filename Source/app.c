@@ -8,6 +8,7 @@
 #include "../Header/selection.h"
 #include "../Header/recent.h"
 #include "../Header/clipboard.h"
+#include <string.h>
 
 void App_AttachState(HWND hWnd, AppState *state)
 {
@@ -252,6 +253,12 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       Clipboard_Copy(hWnd, sel);
       free(sel);
     }
+    char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
+    if (sel)
+    {
+      Clipboard_Copy(hWnd, sel);
+      free(sel);
+    }
     return 0;
 
   case ID_EDIT_PASTE:
@@ -330,6 +337,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     App_RefreshEditorAfterAction(hWnd, s);
 
     return 0;
+  }
 
   case ID_EDIT_DELETE:
     if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
@@ -366,5 +374,5 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     }
   }
 
-    return 0;
-  }
+  return 0;
+}

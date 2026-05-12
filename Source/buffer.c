@@ -580,3 +580,111 @@ void Buffer_FromString(TextBuffer *buf, const char *str)
     buf->cursorRow = 0;
     buf->cursorCol = 0;
 }
+
+InsertStringResult Buffer_InsertString(TextBuffer *buf, const char *str, const TextSelection *sel)
+{
+    InsertStringResult result = {.removed = NULL, .inserted = NULL, .removedLen = 0, .insertedLen = 0};
+
+    if (!buf || !str)
+        return result;
+
+    // Step 1: Handle selection - delete dan track removed string
+    if (Buffer_HasSelection(buf, sel))
+    {
+        result.removed = Buffer_GetSelectedString(buf, sel);
+        if (result.removed)
+            result.removedLen = (int)strlen(result.removed);
+        Buffer_DeleteSelection(buf, sel);
+    }
+
+    // Step 2: Allocate buffer untuk track inserted string
+    // Worst case: semua char jadi 2 bytes (e.g., single \n becomes \r\n)
+    int maxPossibleInsert = ((int)strlen(str) * 2) + 1;
+    result.inserted = (char *)malloc((size_t)maxPossibleInsert);
+    if (!result.inserted)
+        return result;
+
+    char *outPtr = result.inserted;
+    int outLen = 0;
+
+    // Step 3: Insert string char by char, handling newlines
+    for (const char *p = str; *p != '\0'; p++)
+    {
+        // Check overflow BEFORE inserting
+        int currentLineLen = buf->lineLen[buf->cursorRow];
+
+        // If we're at max lines AND current line is full, stop
+        if (buf->lineCount >= BUF_MAX_LINES && currentLineLen >= BUF_MAX_COLS - 1)
+        {
+            break;
+        }
+
+        if (*p == '\r' && *(p + 1) == '\n')
+        {
+            // Windows newline \r\n -> convert to actual newline
+            *outPtr++ = '\r';
+            *outPtr++ = '\n';
+            outLen += 2;
+
+            Buffer_InsertNewline(buf);
+            p++; // skip \n, loop will increment p again
+        }
+        else if (*p == '\n')
+        {
+            // Unix newline
+            *outPtr++ = '\n';
+            outLen += 1;
+
+            Buffer_InsertNewline(buf);
+        }
+        else if (*p == '\r')
+        {
+            // Mac newline
+            *outPtr++ = '\r';
+            outLen += 1;
+
+            Buffer_InsertNewline(buf);
+        }
+        else
+        {
+            // Regular character
+            if (buf->lineLen[buf->cursorRow] >= BUF_MAX_COLS - 1)
+            {
+                // Current line full, can't add more chars to this line
+                // Truncate remaining input (sebagai behaviour default)
+                break;
+            }
+
+            *outPtr++ = *p;
+            outLen += 1;
+
+            Buffer_InsertChar(buf, *p);
+        }
+    }
+
+    *outPtr = '\0';
+    result.insertedLen = outLen;
+
+    return result;
+}
+
+void Buffer_FreeInsertStringResult(InsertStringResult *result)
+{
+    if (!result)
+        return;
+
+    if (result->removed)
+    {
+        free(result->removed);
+        result->removed = NULL;
+    }
+
+    if (result->inserted)
+    {
+        free(result->inserted);
+        result->inserted = NULL;
+    }
+
+    result->removedLen = 0;
+    result->insertedLen = 0;
+}
