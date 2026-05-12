@@ -8,6 +8,7 @@
 #include "../Header/selection.h"
 #include "../Header/recent.h"
 #include "../Header/clipboard.h"
+#include <string.h>
 
 void App_AttachState(HWND hWnd, AppState *state)
 {
@@ -240,18 +241,91 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   }
 
   case ID_EDIT_COPY:
-      char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
-      if (sel)
-      {
-        Clipboard_Copy(hWnd, sel);
-        free(sel);
-      }
+    char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
+    if (sel)
+    {
+      Clipboard_Copy(hWnd, sel);
+      free(sel);
+    }
     return 0;
 
   case ID_EDIT_PASTE:
-    char *buffer = Clipboard_Paste(hWnd); // waiting for api to buffer insert string
-    free(buffer);
+  {
+    const char *clipboardText = Clipboard_Paste(hWnd);
+    if (!clipboardText)
+      return 0; // Nothing to paste
+
+    // Insert string (with selection handling)
+    InsertStringResult insertResult = Buffer_InsertString(&s->textBuffer, clipboardText, &s->selection);
+
+    // Push to undo history
+    if (insertResult.insertedLen > 0)
+    {
+      // Create action untuk undo
+      // - type = INSERT (untuk undo: delete what was inserted)
+      HistoryAction action;
+      action.type = HISTORY_ACTION_INSERT;
+      action.row = s->textBuffer.cursorRow;
+      action.col = s->textBuffer.cursorCol;
+
+      // Copy inserted string ke action.text (truncate jika overflow)
+      int copyLen = insertResult.insertedLen;
+      if (copyLen > HISTORY_ACTION_BUFFER_SIZE - 1)
+        copyLen = HISTORY_ACTION_BUFFER_SIZE - 1;
+
+      if (copyLen > 0)
+      {
+        memcpy(action.text, insertResult.inserted, (size_t)copyLen);
+        action.text[copyLen] = '\0';
+      }
+      else
+      {
+        action.text[0] = '\0';
+      }
+
+      History_PushAction(&s->history, action);
+
+      // Jika ada removed text (dari selection yg ditimpa), push juga sebagai DELETE action
+      if (insertResult.removed && insertResult.removedLen > 0)
+      {
+        HistoryAction deleteAction;
+        deleteAction.type = HISTORY_ACTION_DELETE;
+
+        // Cari start position dari removed text
+        // Simplified: assume removes dari selection.start
+        deleteAction.row = s->selection.start.row;
+        deleteAction.col = s->selection.start.col;
+
+        int copyLen2 = insertResult.removedLen;
+        if (copyLen2 > HISTORY_ACTION_BUFFER_SIZE - 1)
+          copyLen2 = HISTORY_ACTION_BUFFER_SIZE - 1;
+
+        if (copyLen2 > 0)
+        {
+          memcpy(deleteAction.text, insertResult.removed, (size_t)copyLen2);
+          deleteAction.text[copyLen2] = '\0';
+        }
+        else
+        {
+          deleteAction.text[0] = '\0';
+        }
+
+        // Push sebagai already-reversed action (since we're recording the deleted content)
+        History_PushAction(&s->history, deleteAction);
+      }
+    }
+
+    // Cleanup
+    Buffer_FreeInsertStringResult(&insertResult);
+    free((void *)clipboardText);
+
+    // Update UI
+    s->selection.active = 0;
+    App_SyncEditedState(s);
+    App_RefreshEditorAfterAction(hWnd, s);
+
     return 0;
+  }
 
   case ID_EDIT_DELETE:
     if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))

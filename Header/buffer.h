@@ -31,6 +31,14 @@ typedef struct
     TextPos end;
 } TextSelection;
 
+typedef struct
+{
+    char *removed;  // String yang dihapus dari selection (caller must free)
+    char *inserted; // String yang benar-benar diinsert, setelah handle newline & truncate (caller must free)
+    int removedLen;
+    int insertedLen;
+} InsertStringResult;
+
 // ========== Lifecycle ==========
 void Buffer_Init(TextBuffer *buf);
 void Buffer_Free(TextBuffer *buf);  // untuk static: reset/no-op
@@ -44,6 +52,8 @@ void Buffer_InsertChar(TextBuffer *buf, char c);
 void Buffer_InsertNewline(TextBuffer *buf);
 void Buffer_Backspace(TextBuffer *buf);
 void Buffer_Delete(TextBuffer *buf);
+InsertStringResult Buffer_InsertString(TextBuffer *buf, const char *str, const TextSelection *sel);
+void Buffer_FreeInsertStringResult(InsertStringResult *result);
 
 // ========== Selection ==========
 int Buffer_HasSelection(const TextBuffer *buf, const TextSelection *sel);
