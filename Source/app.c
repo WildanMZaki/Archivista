@@ -247,12 +247,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   }
 
   case ID_EDIT_COPY:
-    char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
-    if (sel)
-    {
-      Clipboard_Copy(hWnd, sel);
-      free(sel);
-    }
+  {
     char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
     if (sel)
     {
@@ -260,6 +255,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       free(sel);
     }
     return 0;
+  }
 
   case ID_EDIT_PASTE:
   {
