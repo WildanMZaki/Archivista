@@ -7,18 +7,18 @@
 
 #define HISTORY_ACTION_BUFFER_SIZE 256
 
-typedef enum
+typedef struct
 {
-    HISTORY_ACTION_INSERT = 1,
-    HISTORY_ACTION_DELETE = 2,
-} HistoryActionType;
+    char text[HISTORY_ACTION_BUFFER_SIZE];
+    int row;
+    int col;
+    bool active;
+} HistoryActionPart;
 
 typedef struct
 {
-    HistoryActionType type;                /* Type of action: INSERT or DELETE */
-    char text[HISTORY_ACTION_BUFFER_SIZE]; /* Text yang di-insert/delete */
-    int row;                               /* Cursor row position saat action */
-    int col;                               /* Cursor col position saat action */
+    HistoryActionPart add;    /* Teks yang ditambahkan */
+    HistoryActionPart delete; /* Teks yang dihapus */
 } HistoryAction;
 
 typedef struct

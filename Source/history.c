@@ -6,18 +6,26 @@
 HistoryAction History_CreateInsertAction(const char *text, int row, int col)
 {
     HistoryAction action;
-    action.type = HISTORY_ACTION_INSERT;
-    action.row = row;
-    action.col = col;
+
+    /* Initialize add part */
+    action.add.row = row;
+    action.add.col = col;
+    action.add.active = true;
 
     if (text && strlen(text) < HISTORY_ACTION_BUFFER_SIZE)
     {
-        strcpy_s(action.text, HISTORY_ACTION_BUFFER_SIZE, text);
+        strcpy_s(action.add.text, HISTORY_ACTION_BUFFER_SIZE, text);
     }
     else
     {
-        action.text[0] = '\0';
+        action.add.text[0] = '\0';
     }
+
+    /* Initialize delete part - not active for this action type */
+    action.delete.row = row;
+    action.delete.col = col;
+    action.delete.active = false;
+    action.delete.text[0] = '\0';
 
     return action;
 }
@@ -26,18 +34,26 @@ HistoryAction History_CreateInsertAction(const char *text, int row, int col)
 HistoryAction History_CreateDeleteAction(const char *text, int row, int col)
 {
     HistoryAction action;
-    action.type = HISTORY_ACTION_DELETE;
-    action.row = row;
-    action.col = col;
+
+    /* Initialize delete part */
+    action.delete.row = row;
+    action.delete.col = col;
+    action.delete.active = true;
 
     if (text && strlen(text) < HISTORY_ACTION_BUFFER_SIZE)
     {
-        strcpy_s(action.text, HISTORY_ACTION_BUFFER_SIZE, text);
+        strcpy_s(action.delete.text, HISTORY_ACTION_BUFFER_SIZE, text);
     }
     else
     {
-        action.text[0] = '\0';
+        action.delete.text[0] = '\0';
     }
+
+    /* Initialize add part - not active for this action type */
+    action.add.row = row;
+    action.add.col = col;
+    action.add.active = false;
+    action.add.text[0] = '\0';
 
     return action;
 }
@@ -93,7 +109,11 @@ void History_PushAction(EditHistory *history, HistoryAction action)
     if (!history)
         return;
 
-    if (action.text[0] == '\0' && action.type != HISTORY_ACTION_INSERT)
+    /* Check if there's anything meaningful to push */
+    bool hasAdd = action.add.active && action.add.text[0] != '\0';
+    bool hasDelete = action.delete.active && action.delete.text[0] != '\0';
+
+    if (!hasAdd && !hasDelete)
         return;
 
     Push(&history->undoStack, &action, sizeof(HistoryAction));
@@ -129,15 +149,9 @@ bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
     currentAction = (HistoryAction *)popData;
     *outAction = *currentAction;
 
-    /* Create reverse action untuk redo */
-    if (currentAction->type == HISTORY_ACTION_INSERT)
-    {
-        reverseAction = History_CreateDeleteAction(currentAction->text, currentAction->row, currentAction->col);
-    }
-    else
-    {
-        reverseAction = History_CreateInsertAction(currentAction->text, currentAction->row, currentAction->col);
-    }
+    /* Create reverse action untuk redo - swap add/delete */
+    reverseAction.add = currentAction->delete;
+    reverseAction.delete = currentAction->add;
 
     /* Push reverse action ke redo stack */
     Push(&history->redoStack, &reverseAction, sizeof(HistoryAction));
@@ -173,15 +187,9 @@ bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
     redoAction = (HistoryAction *)popData;
     *outAction = *redoAction;
 
-    /* Create reverse action untuk undo */
-    if (redoAction->type == HISTORY_ACTION_INSERT)
-    {
-        reverseAction = History_CreateDeleteAction(redoAction->text, redoAction->row, redoAction->col);
-    }
-    else
-    {
-        reverseAction = History_CreateInsertAction(redoAction->text, redoAction->row, redoAction->col);
-    }
+    /* Create reverse action untuk undo - swap add/delete */
+    reverseAction.add = redoAction->delete;
+    reverseAction.delete = redoAction->add;
 
     /* Push reverse action ke undo stack */
     Push(&history->undoStack, &reverseAction, sizeof(HistoryAction));
