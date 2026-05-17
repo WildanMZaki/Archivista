@@ -52,7 +52,7 @@ LRESULT Render_OnPaint(HWND hWnd)
     }
 
     // Draw lines
-    for (int i = 0; i < s->textBuffer.lineCount; i++)
+    for (int i = 0; i < Buffer_GetLineCount(&s->textBuffer); i++)
     {
         int x = TEXT_PADDING_LEFT - s->scrollX;
         int y = TEXT_PADDING_TOP + (i * s->charHeight) - s->scrollY;
@@ -62,7 +62,7 @@ LRESULT Render_OnPaint(HWND hWnd)
         if (y > rc.bottom)
             break;
 
-        int len = s->textBuffer.lineLen[i];
+        int len = Buffer_GetLineLen(&s->textBuffer, i);
         int selColStart = -1;
         int selColEnd = -1;
 
@@ -112,14 +112,14 @@ LRESULT Render_OnPaint(HWND hWnd)
             if (selColStart > 0)
             {
                 SetTextColor(memDC, RGB(0, 0, 0));
-                TextOutA(memDC, x, y, s->textBuffer.lines[i], selColStart);
+                TextOutA(memDC, x, y, Buffer_GetLineText(&s->textBuffer, i), selColStart);
             }
 
             SetTextColor(memDC, RGB(255, 255, 255));
             TextOutA(memDC,
                      x + (selColStart * s->charWidth),
                      y,
-                     &s->textBuffer.lines[i][selColStart],
+                     &Buffer_GetLineText(&s->textBuffer, i)[selColStart],
                      selColEnd - selColStart);
 
             if (selColEnd < len)
@@ -128,14 +128,14 @@ LRESULT Render_OnPaint(HWND hWnd)
                 TextOutA(memDC,
                          x + (selColEnd * s->charWidth),
                          y,
-                         &s->textBuffer.lines[i][selColEnd],
+                         &Buffer_GetLineText(&s->textBuffer, i)[selColEnd],
                          len - selColEnd);
             }
         }
         else if (len > 0)
         {
             SetTextColor(memDC, RGB(0, 0, 0));
-            TextOutA(memDC, x, y, s->textBuffer.lines[i], len);
+            TextOutA(memDC, x, y, Buffer_GetLineText(&s->textBuffer, i), len);
         }
     }
 
