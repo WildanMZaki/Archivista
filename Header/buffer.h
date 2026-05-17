@@ -1,16 +1,22 @@
 #ifndef ARCHIVISTA_BUFFER_H
 #define ARCHIVISTA_BUFFER_H
 
-// Static 2D buffer limits (ubah sesuai requirement dosen)
-#define BUF_MAX_LINES 2000
-#define BUF_MAX_COLS 512 // termasuk '\0'
+// Max visible chars per row = 1000, plus 1 for '\0'
+#define BUF_MAX_COLS 1001
+
+typedef struct TextLineNode
+{
+    char text[BUF_MAX_COLS];
+    int len;
+    struct TextLineNode *prev;
+    struct TextLineNode *next;
+} TextLineNode;
 
 typedef struct
 {
-    // lines[row] adalah string null-terminated
-    char lines[BUF_MAX_LINES][BUF_MAX_COLS];
-    int lineLen[BUF_MAX_LINES]; // panjang aktual tiap baris (tanpa '\0')
-
+    TextLineNode *head;
+    TextLineNode *tail;
+    TextLineNode *cursorNode;
     char *initSnapshot;
 
     int lineCount; // minimal 1
@@ -46,6 +52,10 @@ void Buffer_Clear(TextBuffer *buf); // reset jadi 1 baris kosong
 void Buffer_SetInitBuffer(TextBuffer *buf);
 int Buffer_IsBufferChanged(const TextBuffer *buf);
 int Buffer_IsBufferSavable(const TextBuffer *buf);
+int Buffer_GetLineCount(const TextBuffer *buf);
+const char *Buffer_GetLineText(const TextBuffer *buf, int row);
+int Buffer_GetLineLen(const TextBuffer *buf, int row);
+void Buffer_SetCursorPosition(TextBuffer *buf, int row, int col);
 
 // ========== Text Editing ==========
 void Buffer_InsertChar(TextBuffer *buf, char c);
