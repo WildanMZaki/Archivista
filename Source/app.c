@@ -10,6 +10,39 @@
 #include "../Header/clipboard.h"
 #include <string.h>
 
+static void App_CopyHistoryText(char *dst, size_t dstSize, const char *src)
+{
+  size_t out = 0;
+
+  if (!dst || dstSize == 0)
+    return;
+
+  if (!src)
+  {
+    dst[0] = '\0';
+    return;
+  }
+
+  while (*src != '\0' && out + 1 < dstSize)
+  {
+    if (*src == '\r')
+    {
+      if (*(src + 1) == '\n')
+        src++;
+
+      dst[out++] = '\n';
+    }
+    else
+    {
+      dst[out++] = *src;
+    }
+
+    src++;
+  }
+
+  dst[out] = '\0';
+}
+
 void App_AttachState(HWND hWnd, AppState *state)
 {
   SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)state);
@@ -234,7 +267,10 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
       Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &startPos, &endPos);
 
-      HistoryAction del = History_CreateDeleteAction(sel, startPos.row, startPos.col);
+      char historyText[HISTORY_ACTION_BUFFER_SIZE];
+      App_CopyHistoryText(historyText, sizeof(historyText), sel);
+
+      HistoryAction del = History_CreateDeleteAction(historyText, startPos.row, startPos.col);
       History_PushAction(&s->history, del);
       Clipboard_Copy(hWnd, sel);
       free(sel);
@@ -300,7 +336,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
       if (copyLen > 0)
       {
-        memcpy(action.delete.text, insertResult.removed, (size_t)copyLen);
+        App_CopyHistoryText(action.delete.text, sizeof(action.delete.text), insertResult.removed);
         action.delete.text[copyLen] = '\0';
       }
     }
