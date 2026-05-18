@@ -45,6 +45,7 @@ static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
   CloseHandle(hFile);
   Buffer_Clear(&s->textBuffer);
   Buffer_FromString(&s->textBuffer, buffer);
+  Buffer_SetInitBuffer(&s->textBuffer);
   strcpy(s->currentFilePath, path);
   free(buffer);
   return TRUE;
@@ -73,6 +74,7 @@ void FileOps_New(HWND hWnd, AppState *s) {
   if (!ConfirmSave(hWnd, s)) return;
 
   Buffer_Clear(&s->textBuffer); // Clear Buffer
+  Buffer_SetInitBuffer(&s->textBuffer);
   s->currentFilePath[0] = '\0'; // Reset Current File Path
   Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
   App_RefreshEditorAfterAction(hWnd, s);
@@ -119,6 +121,7 @@ void FileOps_Save(HWND hWnd, AppState *s) {
     CloseHandle(hFile);
     return;
   }
+  Buffer_SetInitBuffer(&s->textBuffer);
   App_SyncEditedState(s);
   free(strBuf);
   CloseHandle(hFile);
@@ -146,6 +149,7 @@ void FileOps_SaveAs(HWND hWnd, AppState *s) {
       CloseHandle(hFile);
       return;
     }
+    Buffer_SetInitBuffer(&s->textBuffer);
     App_SyncEditedState(s);
     free(strBuf);
     CloseHandle(hFile);
