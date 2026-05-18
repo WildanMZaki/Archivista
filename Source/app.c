@@ -9,6 +9,7 @@
 #include "../Header/recent.h"
 #include "../Header/clipboard.h"
 #include <string.h>
+#include "../Header/search.h"
 
 static void App_CopyHistoryText(char *dst, size_t dstSize, const char *src)
 {
@@ -95,11 +96,7 @@ LRESULT App_OnCreate(HWND hWnd)
   s->scrollX = 0;
   s->scrollY = 0;
 
-  s->selection.active = 0;
-  s->selection.start.row = 0;
-  s->selection.start.col = 0;
-  s->selection.end.row = 0;
-  s->selection.end.col = 0;
+  Selection_SetSelection(s, 0, 0, 0, 0, 0);
 
   Render_CalcCharSize(hWnd);
 
@@ -388,6 +385,14 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     Selection_SelectAll(s);
     App_RefreshEditorAfterAction(hWnd, s);
     return 0;
+
+  case ID_EDIT_FIND:
+      Search_ShowFindDialog(hWnd);
+      return 0;
+
+  case ID_EDIT_REPLACE:
+      Search_ShowReplaceDialog(hWnd);
+      return 0;
 
   case ID_HELP_ABOUT:
     MessageBox(hWnd,
