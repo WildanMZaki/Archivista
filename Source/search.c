@@ -164,11 +164,8 @@ void Search_ReplaceCurrent(HWND hWnd, AppState *s, const char* replaceWith) {
   if (!s->selection.active)
     return;
 
-  Buffer_DeleteSelection(buf, &s->selection);
-
-  for (int i = 0; replaceWith[i] != '\0'; i++) {
-    Buffer_InsertChar(buf, replaceWith[i]);
-  }
+  InsertStringResult result = Buffer_InsertString(buf, replaceWith, &s->selection);
+  Buffer_FreeInsertStringResult(&result);
 
   Selection_SetSelection(s, 0, buf->cursorRow, buf->cursorCol, buf->cursorRow, buf->cursorCol);
 
