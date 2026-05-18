@@ -3,9 +3,21 @@
 #include "../Header/keyboard.h"
 #include "../Header/mouse.h"
 #include "../Header/render.h"
+#include "../Header/search.h"
 
 LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam,
                          LPARAM lParam) {
+
+  // Pastikan uFindReplaceMsg tidak bernilai 0 (sudah diinisialisasi)
+  if (g_searchState.uFindReplaceMsg != 0 &&
+      message == g_searchState.uFindReplaceMsg) {
+    AppState *appState = App_GetState(hWnd);
+    if (appState) {
+      Search_HandleMessage(hWnd, appState, lParam);
+    }
+    return 0;
+  }
+
   switch (message) {
   case WM_CREATE:
     return App_OnCreate(hWnd);

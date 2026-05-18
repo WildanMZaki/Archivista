@@ -40,4 +40,6 @@ add_executable(Archivista WIN32
         Header/window.h
         Header/winproc.h
         Header/clipboard.h
+        Source/search.c
+        Header/search.h
 )
