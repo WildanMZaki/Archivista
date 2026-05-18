@@ -30,6 +30,14 @@ BOOL Shortcuts_HandleKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         SendMessage(hWnd, WM_COMMAND, ID_EDIT_SELECTALL, 0);
         return TRUE;
 
+    case 'F':
+        SendMessage(hWnd, WM_COMMAND, ID_EDIT_FIND, 0);
+        return TRUE;
+
+    case 'R':
+        SendMessage(hWnd, WM_COMMAND, ID_EDIT_REPLACE, 0);
+        return TRUE;
+
     case 'X':
         SendMessage(hWnd, WM_COMMAND, ID_EDIT_CUT, 0);
         return TRUE;

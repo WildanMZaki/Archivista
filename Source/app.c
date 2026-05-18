@@ -65,6 +65,7 @@ void App_SyncEditedState(AppState *s)
 void App_RefreshEditorAfterAction(HWND hWnd, AppState *s)
 {
   Cursor_ResetBlink(hWnd, s);
+  Scroll_UpdateScrollbars(hWnd);
   Scroll_EnsureCursorVisible(hWnd);
   InvalidateRect(hWnd, NULL, FALSE);
 }
@@ -99,6 +100,7 @@ LRESULT App_OnCreate(HWND hWnd)
   Selection_SetSelection(s, 0, 0, 0, 0, 0);
 
   Render_CalcCharSize(hWnd);
+  Scroll_UpdateScrollbars(hWnd);
 
   Recent_LoadRecent();
   Recent_UpdateMenuRecent(hMenu);
