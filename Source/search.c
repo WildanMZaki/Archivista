@@ -96,6 +96,28 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
               return TRUE;
           }
       }
+
+      // PASS 2: Wrap around — search from line 0 up to startRow
+      for (int r = 0; r <= startRow; r++) {
+        // On the last row of this pass, stop at the original startCol to avoid re-finding
+        int c_end_limit = (r == startRow) ? startCol : buf->lineLen[r];
+
+        const char *found = NULL;
+        if (matchCase)
+          found = strstr(buf->lines[r], findWhat);
+        else
+          found = StrStrI(buf->lines[r], findWhat);
+
+
+        if (found && (int)(found - buf->lines[r]) + findLen <= c_end_limit) {
+          int foundCol = (int)(found - buf->lines[r]);
+          Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
+          Cursor_SetPosition(buf, r, foundCol + findLen);
+          App_RefreshEditorAfterAction(hWnd, s);
+          return TRUE;
+        }
+      }
+
     }
     else {
       // Search backward: startRow → beginning of document
@@ -129,27 +151,32 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
               return TRUE;
           }
       }
-    }
 
-    // PASS 2: Wrap around — search from line 0 up to startRow
-    for (int r = 0; r <= startRow; r++) {
-        // On the last row of this pass, stop at the original startCol to avoid re-finding
-        int c_end_limit = (r == startRow) ? startCol : buf->lineLen[r];
+      //Wrap Around
+      for (int r = buf->lineCount - 1; r >= startRow; r--) {
+        // Scan backwards within the line for the last match after c_end
+        const char *lastFound = NULL;
+        const char *search_ptr = (r == startRow) ? buf->lines[r] + startCol + findLen : buf->lines[r];
+        while (1) {
+          const char *candidate =  NULL;
+          if (matchCase)
+            candidate = strstr(search_ptr, findWhat);
+          else
+            candidate = StrStrI(search_ptr, findWhat);
 
-        const char *found = NULL;
-        if (matchCase)
-          found = strstr(buf->lines[r], findWhat);
-        else
-          found = StrStrI(buf->lines[r], findWhat);
-
-
-        if (found && (int)(found - buf->lines[r]) + findLen <= c_end_limit) {
-            int foundCol = (int)(found - buf->lines[r]);
-            Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
-            Cursor_SetPosition(buf, r, foundCol + findLen);
-            App_RefreshEditorAfterAction(hWnd, s);
-            return TRUE;
+          if (!candidate) break;
+          lastFound = candidate;
+          search_ptr = candidate + 1; // advance past this match
         }
+
+        if (lastFound) {
+          int foundCol = (int)(lastFound - buf->lines[r]);
+          Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
+          Cursor_SetPosition(buf, r, foundCol);  // cursor at START for Find Prev
+          App_RefreshEditorAfterAction(hWnd, s);
+          return TRUE;
+        }
+      }
     }
 
   if (!silent)
