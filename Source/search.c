@@ -57,7 +57,7 @@ void Search_HandleMessage(HWND hWnd, AppState *s, LPARAM lParam) {
   }
   else if (lpfr->Flags & FR_REPLACE)
   {
-    Search_ReplaceCurrent(hWnd, s, g_searchState.szReplaceWith);
+    Search_ReplaceCurrent(hWnd, s, matchCase, g_searchState.szFindWhat, g_searchState.szReplaceWith);
     Search_FindNext(hWnd, s, g_searchState.szFindWhat, matchCase, searchDown, FALSE);
   }
   else if (lpfr->Flags & FR_REPLACEALL)
@@ -185,12 +185,20 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
 }
 
 
-void Search_ReplaceCurrent(HWND hWnd, AppState *s, const char* replaceWith) {
+void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* findWhat, const char* replaceWith) {
   TextBuffer *buf = &s->textBuffer;
 
   if (!s->selection.active)
     return;
 
+  char *selected = Buffer_GetSelectedString(buf, &s->selection);
+
+  if (matchCase ? strcmp(selected, findWhat) != 0 : stricmp(selected, findWhat) != 0) {
+    free(selected);
+    return;
+  }
+
+  free(selected);
   InsertStringResult result = Buffer_InsertString(buf, replaceWith, &s->selection);
   Buffer_FreeInsertStringResult(&result);
 
@@ -215,7 +223,7 @@ void Search_ReplaceAll(HWND hWnd, AppState *s,
       break;
     prevRow = curRow;
     prevCol = curCol;
-    Search_ReplaceCurrent(hWnd, s, replaceWith);
+    Search_ReplaceCurrent(hWnd, s, matchCase,findWhat , replaceWith);
     counter++;
   }
   char msg[64];
