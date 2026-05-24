@@ -121,7 +121,7 @@ LRESULT Mouse_OnMouseWheel(HWND hWnd, WPARAM wParam, LPARAM lParam)
     if (!s)
         return 0;
 
-    Scroll_Vertical(s, wParam);
+    Scroll_Vertical(hWnd, s, wParam);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;
 }
