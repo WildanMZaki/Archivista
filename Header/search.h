@@ -24,6 +24,7 @@ void Search_Init();
 // UI Dialog
 void Search_ShowFindDialog(HWND hwndOwner);
 void Search_ShowReplaceDialog(HWND hwndOwner);
+void Search_ShowGotoDialog(HWND hwndOwner);
 
 // Logika Message
 void Search_HandleMessage(HWND hWnd, AppState* appState, LPARAM lParam);

@@ -21,6 +21,7 @@
 #define ID_EDIT_SELECTALL 2007
 #define ID_EDIT_FIND 2008
 #define ID_EDIT_REPLACE 2009
+#define ID_EDIT_GOTO 2010
 
 // Help menu
 #define ID_HELP_ABOUT 3001

@@ -1,7 +1,9 @@
 #include "../Header/search.h"
 #include "../Header/selection.h"
 #include "../Header/cursor.h"
+#include "../Header/goto.h"
 #include <shlwapi.h>
+
 #pragma comment(lib, "Shlwapi.lib")
 
 SearchState g_searchState = {0};
@@ -209,7 +211,7 @@ void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* f
 }
 
 void Search_ReplaceAll(HWND hWnd, AppState *s,
-                       const char* findWhat, const char* replaceWith, BOOL matchCase) {
+  const char* findWhat, const char* replaceWith, BOOL matchCase) {
   s->textBuffer.cursorRow = 0;
   s->textBuffer.cursorCol = 0;
   s->selection.active = 0;
@@ -229,4 +231,50 @@ void Search_ReplaceAll(HWND hWnd, AppState *s,
   char msg[64];
   sprintf(msg, "Berhasil mengganti %d kata.", counter);
   MessageBox(NULL, msg, "Replace All", MB_OK | MB_ICONINFORMATION);
+}
+
+// Function to initialize and display the custom dialog
+void Search_ShowGotoDialog(HWND hwndOwner) {
+    AppState *appState = App_GetState(hwndOwner);
+    if (!appState) return;
+    static BOOL registered = FALSE;
+    HINSTANCE hInstance = (HINSTANCE)GetWindowLongPtr(hwndOwner, GWLP_HINSTANCE);
+    if (!registered) {
+        WNDCLASS wc = {0};
+        wc.lpfnWndProc = GotoDlgProc;
+        wc.hInstance = hInstance;
+        wc.hbrBackground = (HBRUSH)(COLOR_3DFACE + 1);
+        wc.lpszClassName = "ArchivistaGotoLine";
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+        RegisterClass(&wc);
+        registered = TRUE;
+    }
+    GotoDlgContext *ctx = (GotoDlgContext *)calloc(1, sizeof(GotoDlgContext));
+    ctx->hwndOwner = hwndOwner;
+    ctx->appState = appState;
+    // Center dialog box relative to the owner window
+    RECT parentRect;
+    GetWindowRect(hwndOwner, &parentRect);
+    int width = 295;
+    int height = 150;
+    int x = parentRect.left + (parentRect.right - parentRect.left - width) / 2;
+    int y = parentRect.top + (parentRect.bottom - parentRect.top - height) / 2;
+    HWND hwndDlg = CreateWindowEx(
+        WS_EX_DLGMODALFRAME,
+        "ArchivistaGotoLine",
+        "Go To Line",
+        WS_POPUPWINDOW | WS_CAPTION,
+        x, y, width, height,
+        hwndOwner,
+        NULL,
+        hInstance,
+        ctx
+    );
+    if (hwndDlg) {
+        EnableWindow(hwndOwner, FALSE); // Disable main editor interactions (making dialog modal)
+        ShowWindow(hwndDlg, SW_SHOW);
+        UpdateWindow(hwndDlg);
+    } else {
+        free(ctx);
+    }
 }

@@ -358,6 +358,10 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       Search_ShowReplaceDialog(hWnd);
       return 0;
 
+  case ID_EDIT_GOTO:
+      Search_ShowGotoDialog(hWnd);
+      return 0;
+
   case ID_HELP_ABOUT:
     MessageBox(hWnd,
                "Archivista v1.0\n"

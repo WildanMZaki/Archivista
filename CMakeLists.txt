@@ -23,6 +23,7 @@ add_executable(Archivista WIN32
         Source/stack/stack.c
         Source/clipboard.c
         Source/search.c
+        Source/goto.c
 
         Header/app.h
         Header/buffer.h
@@ -42,4 +43,5 @@ add_executable(Archivista WIN32
         Header/winproc.h
         Header/clipboard.h
         Header/search.h
+        Header/goto.h
 )
