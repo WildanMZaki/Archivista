@@ -28,6 +28,13 @@ HMENU CreateAppMenu(void)
     AppendMenu(hEditMenu, MF_SEPARATOR, 0, NULL);
     AppendMenu(hEditMenu, MF_STRING, ID_EDIT_SELECTALL, "Select All\tCtrl+A");
 
+    // View Menu
+    HMENU hViewMenu = CreatePopupMenu();
+    AppendMenu(hViewMenu, MF_STRING, ID_VIEW_ZOOM_IN, "Zoom In\tCtrl++");
+    AppendMenu(hViewMenu, MF_STRING, ID_VIEW_ZOOM_OUT, "Zoom Out\tCtrl+-");
+    AppendMenu(hViewMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hViewMenu, MF_STRING, ID_VIEW_WORDWRAP, "Word Wrap");
+
     // Help Menu
     HMENU hHelpMenu = CreatePopupMenu();
     AppendMenu(hHelpMenu, MF_STRING, ID_HELP_ABOUT, "About Archivista");
@@ -35,6 +42,7 @@ HMENU CreateAppMenu(void)
     // Attach to Menu Bar
     AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hFileMenu, "File");
     AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hEditMenu, "Edit");
+    AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hViewMenu, "View");
     AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hHelpMenu, "Help");
 
     return hMenuBar;
