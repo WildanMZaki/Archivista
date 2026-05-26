@@ -25,6 +25,7 @@ HMENU CreateAppMenu(void)
     AppendMenu(hEditMenu, MF_SEPARATOR, 0, NULL);
     AppendMenu(hEditMenu, MF_STRING, ID_EDIT_FIND, "Find\tCtrl+F");
     AppendMenu(hEditMenu, MF_STRING, ID_EDIT_REPLACE, "Replace\tCtrl+R");
+    AppendMenu(hEditMenu, MF_STRING, ID_EDIT_GOTO, "Goto\tCtrl+G");
     AppendMenu(hEditMenu, MF_SEPARATOR, 0, NULL);
     AppendMenu(hEditMenu, MF_STRING, ID_EDIT_SELECTALL, "Select All\tCtrl+A");
 

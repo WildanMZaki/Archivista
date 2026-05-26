@@ -1,7 +1,9 @@
 #include "../Header/search.h"
 #include "../Header/selection.h"
 #include "../Header/cursor.h"
+#include "../Header/goto.h"
 #include <shlwapi.h>
+
 #pragma comment(lib, "Shlwapi.lib")
 
 SearchState g_searchState = {0};
@@ -57,7 +59,7 @@ void Search_HandleMessage(HWND hWnd, AppState *s, LPARAM lParam) {
   }
   else if (lpfr->Flags & FR_REPLACE)
   {
-    Search_ReplaceCurrent(hWnd, s, g_searchState.szReplaceWith);
+    Search_ReplaceCurrent(hWnd, s, matchCase, g_searchState.szFindWhat, g_searchState.szReplaceWith);
     Search_FindNext(hWnd, s, g_searchState.szFindWhat, matchCase, searchDown, FALSE);
   }
   else if (lpfr->Flags & FR_REPLACEALL)
@@ -96,6 +98,28 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
               return TRUE;
           }
       }
+
+      // PASS 2: Wrap around — search from line 0 up to startRow
+      for (int r = 0; r <= startRow; r++) {
+        // On the last row of this pass, stop at the original startCol to avoid re-finding
+        int c_end_limit = (r == startRow) ? startCol : buf->lineLen[r];
+
+        const char *found = NULL;
+        if (matchCase)
+          found = strstr(buf->lines[r], findWhat);
+        else
+          found = StrStrI(buf->lines[r], findWhat);
+
+
+        if (found && (int)(found - buf->lines[r]) + findLen <= c_end_limit) {
+          int foundCol = (int)(found - buf->lines[r]);
+          Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
+          Cursor_SetPosition(buf, r, foundCol + findLen);
+          App_RefreshEditorAfterAction(hWnd, s);
+          return TRUE;
+        }
+      }
+
     }
     else {
       // Search backward: startRow → beginning of document
@@ -129,27 +153,32 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
               return TRUE;
           }
       }
-    }
 
-    // PASS 2: Wrap around — search from line 0 up to startRow
-    for (int r = 0; r <= startRow; r++) {
-        // On the last row of this pass, stop at the original startCol to avoid re-finding
-        int c_end_limit = (r == startRow) ? startCol : buf->lineLen[r];
+      //Wrap Around
+      for (int r = buf->lineCount - 1; r >= startRow; r--) {
+        // Scan backwards within the line for the last match after c_end
+        const char *lastFound = NULL;
+        const char *search_ptr = (r == startRow) ? buf->lines[r] + startCol + findLen : buf->lines[r];
+        while (1) {
+          const char *candidate =  NULL;
+          if (matchCase)
+            candidate = strstr(search_ptr, findWhat);
+          else
+            candidate = StrStrI(search_ptr, findWhat);
 
-        const char *found = NULL;
-        if (matchCase)
-          found = strstr(buf->lines[r], findWhat);
-        else
-          found = StrStrI(buf->lines[r], findWhat);
-
-
-        if (found && (int)(found - buf->lines[r]) + findLen <= c_end_limit) {
-            int foundCol = (int)(found - buf->lines[r]);
-            Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
-            Cursor_SetPosition(buf, r, foundCol + findLen);
-            App_RefreshEditorAfterAction(hWnd, s);
-            return TRUE;
+          if (!candidate) break;
+          lastFound = candidate;
+          search_ptr = candidate + 1; // advance past this match
         }
+
+        if (lastFound) {
+          int foundCol = (int)(lastFound - buf->lines[r]);
+          Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
+          Cursor_SetPosition(buf, r, foundCol);  // cursor at START for Find Prev
+          App_RefreshEditorAfterAction(hWnd, s);
+          return TRUE;
+        }
+      }
     }
 
   if (!silent)
@@ -158,12 +187,20 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
 }
 
 
-void Search_ReplaceCurrent(HWND hWnd, AppState *s, const char* replaceWith) {
+void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* findWhat, const char* replaceWith) {
   TextBuffer *buf = &s->textBuffer;
 
   if (!s->selection.active)
     return;
 
+  char *selected = Buffer_GetSelectedString(buf, &s->selection);
+
+  if (matchCase ? strcmp(selected, findWhat) != 0 : stricmp(selected, findWhat) != 0) {
+    free(selected);
+    return;
+  }
+
+  free(selected);
   InsertStringResult result = Buffer_InsertString(buf, replaceWith, &s->selection);
   Buffer_FreeInsertStringResult(&result);
 
@@ -174,7 +211,7 @@ void Search_ReplaceCurrent(HWND hWnd, AppState *s, const char* replaceWith) {
 }
 
 void Search_ReplaceAll(HWND hWnd, AppState *s,
-                       const char* findWhat, const char* replaceWith, BOOL matchCase) {
+  const char* findWhat, const char* replaceWith, BOOL matchCase) {
   s->textBuffer.cursorRow = 0;
   s->textBuffer.cursorCol = 0;
   s->selection.active = 0;
@@ -188,10 +225,56 @@ void Search_ReplaceAll(HWND hWnd, AppState *s,
       break;
     prevRow = curRow;
     prevCol = curCol;
-    Search_ReplaceCurrent(hWnd, s, replaceWith);
+    Search_ReplaceCurrent(hWnd, s, matchCase,findWhat , replaceWith);
     counter++;
   }
   char msg[64];
   sprintf(msg, "Berhasil mengganti %d kata.", counter);
   MessageBox(NULL, msg, "Replace All", MB_OK | MB_ICONINFORMATION);
+}
+
+// Function to initialize and display the custom dialog
+void Search_ShowGotoDialog(HWND hwndOwner) {
+    AppState *appState = App_GetState(hwndOwner);
+    if (!appState) return;
+    static BOOL registered = FALSE;
+    HINSTANCE hInstance = (HINSTANCE)GetWindowLongPtr(hwndOwner, GWLP_HINSTANCE);
+    if (!registered) {
+        WNDCLASS wc = {0};
+        wc.lpfnWndProc = GotoDlgProc;
+        wc.hInstance = hInstance;
+        wc.hbrBackground = (HBRUSH)(COLOR_3DFACE + 1);
+        wc.lpszClassName = "ArchivistaGotoLine";
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+        RegisterClass(&wc);
+        registered = TRUE;
+    }
+    GotoDlgContext *ctx = (GotoDlgContext *)calloc(1, sizeof(GotoDlgContext));
+    ctx->hwndOwner = hwndOwner;
+    ctx->appState = appState;
+    // Center dialog box relative to the owner window
+    RECT parentRect;
+    GetWindowRect(hwndOwner, &parentRect);
+    int width = 295;
+    int height = 150;
+    int x = parentRect.left + (parentRect.right - parentRect.left - width) / 2;
+    int y = parentRect.top + (parentRect.bottom - parentRect.top - height) / 2;
+    HWND hwndDlg = CreateWindowEx(
+        WS_EX_DLGMODALFRAME,
+        "ArchivistaGotoLine",
+        "Go To Line",
+        WS_POPUPWINDOW | WS_CAPTION,
+        x, y, width, height,
+        hwndOwner,
+        NULL,
+        hInstance,
+        ctx
+    );
+    if (hwndDlg) {
+        EnableWindow(hwndOwner, FALSE); // Disable main editor interactions (making dialog modal)
+        ShowWindow(hwndDlg, SW_SHOW);
+        UpdateWindow(hwndDlg);
+    } else {
+        free(ctx);
+    }
 }
