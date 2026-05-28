@@ -32,7 +32,7 @@ HMENU CreateAppMenu(void)
     HMENU hViewMenu = CreatePopupMenu();
     AppendMenu(hViewMenu, MF_STRING, ID_VIEW_ZOOM_IN, "Zoom In\tCtrl++");
     AppendMenu(hViewMenu, MF_STRING, ID_VIEW_ZOOM_OUT, "Zoom Out\tCtrl+-");
-    AppendMenu(hViewMenu, MF_STRING, ID_VIEW_ZOOM_RESET, "Zoom Out\tCtrl+0");
+    AppendMenu(hViewMenu, MF_STRING, ID_VIEW_ZOOM_RESET, "Zoom Reset\tCtrl+0");
 
     // Help Menu
     HMENU hHelpMenu = CreatePopupMenu();
