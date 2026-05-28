@@ -8,7 +8,19 @@ void Clipboard_Copy(HWND hWnd,  char *stringIn) {
     int len = strlen(stringIn);
 
     HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len + 1);
+    if (!hMem) {
+        CloseClipboard();
+        MessageBoxA(hWnd, "Alloc Failed for copy", "Archivista", 0);
+        return;
+    }
+
     char *buffer = GlobalLock(hMem);
+    if (!buffer) { // in case buffer is null
+        CloseClipboard();
+        MessageBoxA(hWnd, "Failed to copy", "Archivista", 0);
+        return;
+    }
+
     memcpy(buffer, stringIn, len + 1);
     GlobalUnlock(hMem);
 
