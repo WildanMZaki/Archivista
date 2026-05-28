@@ -23,6 +23,10 @@ char *Clipboard_Paste(HWND hWnd) {
     HGLOBAL hMem = GetClipboardData(CF_TEXT);
     if (hMem) {
         char *buffer = GlobalLock(hMem);
+        if (!buffer) { // in case buffer is null
+            CloseClipboard();
+            return result;
+        }
         result = _strdup(buffer);
         GlobalUnlock(hMem);
     }
