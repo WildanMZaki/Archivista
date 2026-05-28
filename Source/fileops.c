@@ -103,11 +103,9 @@ BOOL FileOps_Open(HWND hWnd, AppState *s, char *path) {
   return TRUE;
 }
 
-BOOL FileOps_Save(HWND hWnd, AppState *s) {
-  if (s->currentFilePath[0] == '\0') return FileOps_SaveAs(hWnd, s);
-
-  HANDLE hFile = CreateFile(s->currentFilePath, GENERIC_WRITE, 0, NULL,
-                            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+BOOL FileOps_WriteToPath(HWND hWnd, AppState *s, const char *path) {
+  HANDLE hFile = CreateFile(path, GENERIC_WRITE, 0, NULL,
+                          CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == INVALID_HANDLE_VALUE) {
     MessageBox(hWnd, "Failed to save file", "Error", MB_ICONERROR);
     return FALSE;
@@ -126,9 +124,15 @@ BOOL FileOps_Save(HWND hWnd, AppState *s) {
   App_SyncEditedState(s);
   free(strBuf);
   CloseHandle(hFile);
-  Recent_AddRecent(s->currentFilePath);
+  Recent_AddRecent(path);
   Recent_UpdateMenuRecent(GetMenu(hWnd));
   return TRUE;
+}
+
+BOOL FileOps_Save(HWND hWnd, AppState *s) {
+  if (s->currentFilePath[0] == '\0') return FileOps_SaveAs(hWnd, s);
+
+  return FileOps_WriteToPath(hWnd, s, s->currentFilePath);
 }
 
 BOOL FileOps_SaveAs(HWND hWnd, AppState *s) {
@@ -138,26 +142,5 @@ BOOL FileOps_SaveAs(HWND hWnd, AppState *s) {
 
   if (!GetSaveFileName(&ofn)) return FALSE;
 
-  HANDLE hFile = CreateFile(ofn.lpstrFile, GENERIC_WRITE, 0, NULL,
-                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (hFile == INVALID_HANDLE_VALUE) {
-    MessageBox(hWnd, "Failed to save file", "Error", MB_ICONERROR);
-    return FALSE;
-  }
-  DWORD bytesWritten;
-  char *strBuf = Buffer_ToString(&s->textBuffer);
-  if (!WriteFile(hFile, strBuf, strlen(strBuf), &bytesWritten, NULL)) {
-    MessageBox(hWnd, "Failed to write file", "Error", MB_ICONERROR);
-    free(strBuf);
-    CloseHandle(hFile);
-    return FALSE;
-  }
-
-    Buffer_SetInitBuffer(&s->textBuffer);
-    App_SyncEditedState(s);
-    free(strBuf);
-    CloseHandle(hFile);
-    Recent_AddRecent(ofn.lpstrFile);
-    Recent_UpdateMenuRecent(GetMenu(hWnd));
-    return TRUE;
+  return FileOps_WriteToPath(hWnd, s, ofn.lpstrFile);
 }
