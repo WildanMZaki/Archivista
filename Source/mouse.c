@@ -4,6 +4,7 @@
 #include "../Header/selection.h"
 #include "../Header/cursor.h"
 #include "../Header/scroll.h"
+#include "../Header/zoom.h"
 
 static DWORD s_lastDblClkTime = 0;
 static BOOL s_isWordLineSelection = FALSE;
@@ -121,6 +122,19 @@ LRESULT Mouse_OnMouseWheel(HWND hWnd, WPARAM wParam, LPARAM lParam)
     if (!s)
         return 0;
 
+    // Jika Ctrl ditekan bersamaan → Zoom
+    BOOL ctrlDown = (LOWORD(wParam) & MK_CONTROL) != 0;
+    if (ctrlDown)
+    {
+        int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+        if (delta > 0)
+            Zoom_In(hWnd, s);
+        else if (delta < 0)
+            Zoom_Out(hWnd, s);
+        return 0;
+    }
+
+    //Scroll biasa tanpa ctrl
     Scroll_Vertical(s, wParam);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;

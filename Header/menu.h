@@ -23,6 +23,11 @@
 #define ID_EDIT_REPLACE 2009
 #define ID_EDIT_GOTO 2010
 
+// View menu
+#define ID_VIEW_ZOOM_IN 4001
+#define ID_VIEW_ZOOM_OUT 4002
+#define ID_VIEW_ZOOM_RESET 4003
+
 // Help menu
 #define ID_HELP_ABOUT 3001
 

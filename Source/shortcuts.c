@@ -62,6 +62,18 @@ BOOL Shortcuts_HandleKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         SendMessage(hWnd, WM_COMMAND, ID_EDIT_GOTO, 0);
         return TRUE;
 
+    case VK_OEM_PLUS:   // Ctrl+Plus (tombol = / + di keyboard utama)
+        SendMessage(hWnd, WM_COMMAND, ID_VIEW_ZOOM_IN, 0);
+        return TRUE;
+
+    case VK_OEM_MINUS:  // Ctrl+Minus (tombol - di keyboard utama)
+        SendMessage(hWnd, WM_COMMAND, ID_VIEW_ZOOM_OUT, 0);
+        return TRUE;
+
+    case '0':           // Ctrl+0 (Reset zoom)
+        SendMessage(hWnd, WM_COMMAND, ID_VIEW_ZOOM_RESET, 0);
+        return TRUE;
+
     default:
         return FALSE;
     }
