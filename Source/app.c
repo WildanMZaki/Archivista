@@ -149,8 +149,6 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     return 0;
 
   case ID_FILE_EXIT:
-    if (!ConfirmSave(hWnd, s))
-      return 0;
     PostMessage(hWnd, WM_CLOSE, 0, 0);
     return 0;
 
