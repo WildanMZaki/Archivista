@@ -24,6 +24,7 @@ add_executable(Archivista WIN32
         Source/clipboard.c
         Source/search.c
         Source/goto.c
+        Source/zoom.c
 
         Header/app.h
         Header/buffer.h
@@ -44,4 +45,5 @@ add_executable(Archivista WIN32
         Header/clipboard.h
         Header/search.h
         Header/goto.h
+        Header/zoom.h
 )

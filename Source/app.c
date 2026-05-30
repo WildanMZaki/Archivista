@@ -10,6 +10,7 @@
 #include "../Header/clipboard.h"
 #include <string.h>
 #include "../Header/search.h"
+#include "../Header/zoom.h"
 
 static void App_CopyHistoryText(char *dst, size_t dstSize, const char *src)
 {
@@ -84,6 +85,7 @@ LRESULT App_OnCreate(HWND hWnd)
   HMENU hMenu = CreateAppMenu();
   SetMenu(hWnd, hMenu);
 
+  s->fontSize = ZOOM_DEFAULT;
   s->editorFont = CustomFontCanvas(FONT_NAME, FONT_HEIGHT, FONT_WIDTH);
   if (!s->editorFont)
   {
@@ -182,8 +184,6 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     return 0;
 
   case ID_FILE_EXIT:
-    if (!ConfirmSave(hWnd, s))
-      return 0;
     PostMessage(hWnd, WM_CLOSE, 0, 0);
     return 0;
 
@@ -398,6 +398,18 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
   case ID_EDIT_GOTO:
       Search_ShowGotoDialog(hWnd);
+      return 0;
+
+  case ID_VIEW_ZOOM_IN:
+      Zoom_In(hWnd, s);
+      return 0;
+
+  case ID_VIEW_ZOOM_OUT:
+      Zoom_Out(hWnd, s);
+      return 0;
+
+  case ID_VIEW_ZOOM_RESET:
+      Zoom_Reset(hWnd, s);
       return 0;
 
   case ID_HELP_ABOUT:

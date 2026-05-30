@@ -8,6 +8,7 @@
 typedef struct AppState
 {
   HFONT editorFont;
+  int fontSize;
 
   BOOL cursorVisible; // blink state
   int charWidth;
