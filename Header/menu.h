@@ -26,7 +26,8 @@
 // View menu
 #define ID_VIEW_ZOOM_IN 4001
 #define ID_VIEW_ZOOM_OUT 4002
-#define ID_VIEW_WORDWRAP 4003
+#define ID_VIEW_ZOOM_RESET 4003
+#define ID_VIEW_WORDWRAP 4004
 
 // Help menu
 #define ID_HELP_ABOUT 3001
