@@ -1,16 +1,7 @@
 #include "../Header/cursor.h"
 #include "../Header/app.h"
 #include "../Header/main.h"
-
-// Clamp an integer between two bounds.
-static int Cursor_ClampInt(int value, int minValue, int maxValue)
-{
-    if (value < minValue)
-        return minValue;
-    if (value > maxValue)
-        return maxValue;
-    return value;
-}
+#include "../Header/utils.h"
 
 // Reset the cursor visibility and restart the blink timer.
 void Cursor_ResetBlink(HWND hWnd, AppState *s)
@@ -90,12 +81,12 @@ void Cursor_GetPositionFromMouse(LPARAM lParam, const AppState *s, int *outRow, 
         int mouseY = (int)(short)HIWORD(lParam) + s->scrollY - TEXT_PADDING_TOP;
 
         row = (s->charHeight ? (mouseY / s->charHeight) : 0);
-        row = Cursor_ClampInt(row, 0, Buffer_GetLineCount(&s->textBuffer) - 1);
+        row = ClampInt(row, 0, Buffer_GetLineCount(&s->textBuffer) - 1);
 
         col = (s->charWidth ? ((mouseX + s->charWidth / 2) / s->charWidth) : 0);
         if (col < 0)
             col = 0;
-        col = Cursor_ClampInt(col, 0, Buffer_GetLineLen(&s->textBuffer, row));
+        col = ClampInt(col, 0, Buffer_GetLineLen(&s->textBuffer, row));
     }
 
     if (outRow)

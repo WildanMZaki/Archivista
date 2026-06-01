@@ -1,14 +1,6 @@
 #include "../Header/scroll.h"
 #include "../Header/main.h"
-
-static int Scroll_ClampInt(int value, int minValue, int maxValue)
-{
-    if (value < minValue)
-        return minValue;
-    if (value > maxValue)
-        return maxValue;
-    return value;
-}
+#include "../Header/utils.h"
 
 static int Scroll_GetLongestLineLen(const TextBuffer *buf)
 {
@@ -134,8 +126,8 @@ void Scroll_UpdateScrollbars(HWND hWnd)
     showHorz = contentWidth > clientWidth;
     showVert = contentHeight > clientHeight;
 
-    s->scrollX = Scroll_ClampInt(s->scrollX, 0, maxScrollX);
-    s->scrollY = Scroll_ClampInt(s->scrollY, 0, maxScrollY);
+    s->scrollX = ClampInt(s->scrollX, 0, maxScrollX);
+    s->scrollY = ClampInt(s->scrollY, 0, maxScrollY);
 
     ShowScrollBar(hWnd, SB_HORZ, showHorz);
     ShowScrollBar(hWnd, SB_VERT, showVert);
@@ -183,8 +175,8 @@ void Scroll_EnsureCursorVisible(HWND hWnd)
         s->scrollX = cursorPixelX - clientWidth + charWidth;
     }
 
-    s->scrollX = Scroll_ClampInt(s->scrollX, 0, maxScrollX);
-    s->scrollY = Scroll_ClampInt(s->scrollY, 0, maxScrollY);
+    s->scrollX = ClampInt(s->scrollX, 0, maxScrollX);
+    s->scrollY = ClampInt(s->scrollY, 0, maxScrollY);
 
     Scroll_UpdateScrollbars(hWnd);
 }
@@ -321,7 +313,7 @@ static void Scroll_HandleBar(HWND hWnd, int bar, WPARAM wParam)
         }
     }
 
-    pos = Scroll_ClampInt(pos, 0, maxPos);
+    pos = ClampInt(pos, 0, maxPos);
 
     if (bar == SB_VERT)
         s->scrollY = pos;
