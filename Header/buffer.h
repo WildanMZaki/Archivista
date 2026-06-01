@@ -3,11 +3,13 @@
 
 // Max visible chars per row = 1000, plus 1 for '\0'
 #define BUF_MAX_COLS 1001
+// #define BUF_MAX_COLS 11
 
 typedef struct TextLineNode
 {
     char text[BUF_MAX_COLS];
     int len;
+    int isWrapped; // 1 if this node was created by automatic overflow (soft-wrap), 0 for explicit newline
     struct TextLineNode *prev;
     struct TextLineNode *next;
 } TextLineNode;
