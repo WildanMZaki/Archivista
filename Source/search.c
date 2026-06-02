@@ -79,19 +79,20 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
     // PASS 1: Cari dari posisi kursor ke akhir dokumen
     if (searchDown) {
       // Search forward: startRow → end of document
-      for (int r = startRow; r < buf->lineCount; r++) {
+      for (int r = startRow; r < Buffer_GetLineCount(buf); r++) {
           int c_start = (r == startRow) ? startCol : 0;
-          int lineLen = buf->lineLen[r];
+          int lineLen = Buffer_GetLineLen(buf, r);
           if (c_start > lineLen) c_start = lineLen;
 
+          const char *line = Buffer_GetLineText(buf, r);
           const char *found = NULL;
           if (matchCase)
-              found = strstr(buf->lines[r] + c_start, findWhat);
+              found = strstr(line + c_start, findWhat);
           else
-              found = StrStrI(buf->lines[r] + c_start, findWhat);
+              found = StrStrI(line + c_start, findWhat);
 
           if (found) {
-              int foundCol = (int)(found - buf->lines[r]);
+              int foundCol = (int)(found - line);
               Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
               Cursor_SetPosition(buf, r, foundCol + findLen);
               App_RefreshEditorAfterAction(hWnd, s);
@@ -102,17 +103,18 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
       // PASS 2: Wrap around — search from line 0 up to startRow
       for (int r = 0; r <= startRow; r++) {
         // On the last row of this pass, stop at the original startCol to avoid re-finding
-        int c_end_limit = (r == startRow) ? startCol : buf->lineLen[r];
+        int c_end_limit = (r == startRow) ? startCol : Buffer_GetLineLen(buf, r);
 
+        const char *line = Buffer_GetLineText(buf, r);
         const char *found = NULL;
         if (matchCase)
-          found = strstr(buf->lines[r], findWhat);
+          found = strstr(line, findWhat);
         else
-          found = StrStrI(buf->lines[r], findWhat);
+          found = StrStrI(line, findWhat);
 
 
-        if (found && (int)(found - buf->lines[r]) + findLen <= c_end_limit) {
-          int foundCol = (int)(found - buf->lines[r]);
+        if (found && (int)(found - line) + findLen <= c_end_limit) {
+          int foundCol = (int)(found - line);
           Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
           Cursor_SetPosition(buf, r, foundCol + findLen);
           App_RefreshEditorAfterAction(hWnd, s);
@@ -125,13 +127,13 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
       // Search backward: startRow → beginning of document
       // We search each line from right-to-left by scanning backward manually.
       for (int r = startRow; r >= 0; r--) {
-          int lineLen = buf->lineLen[r];
+          int lineLen = Buffer_GetLineLen(buf, r);
           // On the start row, we must only look at characters BEFORE startCol
           int c_end = (r == startRow) ? startCol : lineLen;
 
           // Scan backwards within the line for the last match before c_end
           const char *lastFound = NULL;
-          const char *search_ptr = buf->lines[r];
+          const char *search_ptr = Buffer_GetLineText(buf, r);
           while (1) {
               const char *candidate =  NULL;
                 if (matchCase)
@@ -140,13 +142,13 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
                   candidate = StrStrI(search_ptr, findWhat);
 
               if (!candidate) break;
-              if ((int)(candidate - buf->lines[r]) + findLen > c_end) break;
+              if ((int)(candidate - Buffer_GetLineText(buf, r)) + findLen > c_end) break;
               lastFound = candidate;
               search_ptr = candidate + 1; // advance past this match
           }
 
           if (lastFound) {
-              int foundCol = (int)(lastFound - buf->lines[r]);
+              int foundCol = (int)(lastFound - Buffer_GetLineText(buf, r));
               Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
               Cursor_SetPosition(buf, r, foundCol);  // cursor at START for Find Prev
               App_RefreshEditorAfterAction(hWnd, s);
@@ -155,10 +157,10 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
       }
 
       //Wrap Around
-      for (int r = buf->lineCount - 1; r >= startRow; r--) {
+      for (int r = Buffer_GetLineCount(buf) - 1; r >= startRow; r--) {
         // Scan backwards within the line for the last match after c_end
         const char *lastFound = NULL;
-        const char *search_ptr = (r == startRow) ? buf->lines[r] + startCol + findLen : buf->lines[r];
+        const char *search_ptr = (r == startRow) ? Buffer_GetLineText(buf, r) + startCol + findLen : Buffer_GetLineText(buf, r);
         while (1) {
           const char *candidate =  NULL;
           if (matchCase)
@@ -172,7 +174,7 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
         }
 
         if (lastFound) {
-          int foundCol = (int)(lastFound - buf->lines[r]);
+          int foundCol = (int)(lastFound - Buffer_GetLineText(buf, r));
           Selection_SetSelection(s, 1, r, foundCol, r, foundCol + findLen);
           Cursor_SetPosition(buf, r, foundCol);  // cursor at START for Find Prev
           App_RefreshEditorAfterAction(hWnd, s);
@@ -212,8 +214,7 @@ void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* f
 
 void Search_ReplaceAll(HWND hWnd, AppState *s,
   const char* findWhat, const char* replaceWith, BOOL matchCase) {
-  s->textBuffer.cursorRow = 0;
-  s->textBuffer.cursorCol = 0;
+  Buffer_SetCursorPosition(&s->textBuffer, 0, 0);
   s->selection.active = 0;
   int counter = 0;
   int prevRow = -1, prevCol = -1;

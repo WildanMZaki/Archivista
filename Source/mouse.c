@@ -135,7 +135,7 @@ LRESULT Mouse_OnMouseWheel(HWND hWnd, WPARAM wParam, LPARAM lParam)
     }
 
     //Scroll biasa tanpa ctrl
-    Scroll_Vertical(s, wParam);
+    Scroll_Vertical(hWnd, s, wParam);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;
 }
