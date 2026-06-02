@@ -222,6 +222,22 @@ static void Buffer_ReflowRun(TextBuffer *buf, TextLineNode *anchor, int editOffs
     TextLineNode *end = Buffer_GetRunEndNode(anchor);
     int row = Buffer_GetNodeRow(buf, start);
 
+    // 1. Check if the cursor is in this run and calculate its absolute offset
+    int hasCursor = 0;
+    int cursorAbsoluteOffset = 0;
+    int runOffset = 0;
+    for (TextLineNode *n = start; n; n = n->next)
+    {
+        if (n == buf->cursorNode)
+        {
+            hasCursor = 1;
+            cursorAbsoluteOffset = runOffset + buf->cursorCol;
+        }
+        runOffset += n->len;
+        if (n == end)
+            break;
+    }
+
     int joinedLen = 0;
     for (TextLineNode *node = start; node; node = node->next)
     {
@@ -272,6 +288,10 @@ static void Buffer_ReflowRun(TextBuffer *buf, TextLineNode *anchor, int editOffs
     }
     joined[joinedLen] = '\0';
 
+    int limit = buf->wrapCols;
+    if (limit <= 0 || limit >= BUF_MAX_COLS - 1)
+        limit = BUF_MAX_COLS - 1;
+
     TextLineNode *node = start;
     TextLineNode *lastUsed = NULL;
     offset = 0;
@@ -287,8 +307,34 @@ static void Buffer_ReflowRun(TextBuffer *buf, TextLineNode *anchor, int editOffs
         while (offset < joinedLen)
         {
             int chunkLen = joinedLen - offset;
-            if (chunkLen > BUF_MAX_COLS - 1)
-                chunkLen = BUF_MAX_COLS - 1;
+            if (chunkLen > limit)
+            {
+                chunkLen = limit;
+                if (buf->wordWrapEnabled)
+                {
+                    char boundaryChar = joined[offset + limit];
+                    if (boundaryChar == ' ' || boundaryChar == '\t' || boundaryChar == '\0')
+                    {
+                        chunkLen = limit;
+                    }
+                    else
+                    {
+                        int splitIdx = limit - 1;
+                        while (splitIdx > 0 && joined[offset + splitIdx] != ' ' && joined[offset + splitIdx] != '\t')
+                        {
+                            splitIdx--;
+                        }
+                        if (splitIdx > 0)
+                        {
+                            chunkLen = splitIdx + 1;
+                        }
+                        else
+                        {
+                            chunkLen = limit;
+                        }
+                    }
+                }
+            }
 
             if (!node)
             {
@@ -324,33 +370,41 @@ static void Buffer_ReflowRun(TextBuffer *buf, TextLineNode *anchor, int editOffs
     if (lastUsed)
         Buffer_FreeWrappedNodesAfter(lastUsed, buf);
 
-    int newAbsoluteOffset = editOffset + insertLen;
-    if (newAbsoluteOffset < 0)
-        newAbsoluteOffset = 0;
-    if (newAbsoluteOffset > joinedLen)
-        newAbsoluteOffset = joinedLen;
-
-    int remaining = newAbsoluteOffset;
-    TextLineNode *cursorNode = start;
-    int cursorRow = row;
-
-    while (cursorNode && remaining > cursorNode->len)
+    if (hasCursor)
     {
-        remaining -= cursorNode->len;
-        if (cursorNode->next && cursorNode->next->isWrapped)
+        int newAbsoluteOffset = cursorAbsoluteOffset;
+        if (deleteLen > 0 || insertLen > 0)
         {
-            cursorNode = cursorNode->next;
-            cursorRow++;
+            newAbsoluteOffset = editOffset + insertLen;
         }
-        else
-        {
-            break;
-        }
-    }
 
-    if (cursorNode)
-    {
-        Buffer_MoveCursor(buf, cursorNode, cursorRow, remaining);
+        if (newAbsoluteOffset < 0)
+            newAbsoluteOffset = 0;
+        if (newAbsoluteOffset > joinedLen)
+            newAbsoluteOffset = joinedLen;
+
+        int remaining = newAbsoluteOffset;
+        TextLineNode *cursorNode = start;
+        int cursorRow = row;
+
+        while (cursorNode && remaining > cursorNode->len)
+        {
+            remaining -= cursorNode->len;
+            if (cursorNode->next && cursorNode->next->isWrapped)
+            {
+                cursorNode = cursorNode->next;
+                cursorRow++;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (cursorNode)
+        {
+            Buffer_MoveCursor(buf, cursorNode, cursorRow, remaining);
+        }
     }
 
     free(joined);
@@ -529,6 +583,8 @@ void Buffer_Init(TextBuffer *buf)
     buf->lineCount = 0;
     buf->cursorRow = 0;
     buf->cursorCol = 0;
+    buf->wrapCols = BUF_MAX_COLS - 1;
+    buf->wordWrapEnabled = 0;
 
     Buffer_Clear(buf);
     Buffer_SetInitBuffer(buf);
@@ -627,7 +683,11 @@ void Buffer_InsertChar(TextBuffer *buf, char c)
 
     ccol = ClampInt(buf->cursorCol, 0, node->len);
 
-    if (node->len < BUF_MAX_COLS - 1 && !(node->next && node->next->isWrapped))
+    int limit = buf->wrapCols;
+    if (limit <= 0 || limit >= BUF_MAX_COLS - 1)
+        limit = BUF_MAX_COLS - 1;
+
+    if (node->len < limit && !(node->next && node->next->isWrapped))
     {
         memmove(&node->text[ccol + 1],
                 &node->text[ccol],
@@ -1326,4 +1386,22 @@ void Buffer_FreeInsertStringResult(InsertStringResult *result)
 
     result->removedLen = 0;
     result->insertedLen = 0;
+}
+
+void Buffer_ReflowAll(TextBuffer *buf)
+{
+    if (!buf)
+        return;
+
+    TextLineNode *node = buf->head;
+    while (node)
+    {
+        TextLineNode *nextLogical = node;
+        do {
+            nextLogical = nextLogical->next;
+        } while (nextLogical && nextLogical->isWrapped);
+
+        Buffer_ReflowRun(buf, node, 0, 0, NULL);
+        node = nextLogical;
+    }
 }
