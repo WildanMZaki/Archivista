@@ -43,3 +43,8 @@ void Selection_SelectAll(AppState *s) {
     Selection_SetSelection(s, 1, 0, 0, lastRow, lastCol);
     Cursor_SetPosition(&s->textBuffer, lastRow, lastCol);
 }
+
+void Selection_SetEnd(AppState *s, int row, int col) {
+    s->selection.end.row = row;
+    s->selection.end.col = col;
+}

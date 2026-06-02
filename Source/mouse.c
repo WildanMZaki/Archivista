@@ -72,12 +72,10 @@ LRESULT Mouse_OnMouseMove(HWND hWnd, WPARAM wParam, LPARAM lParam)
         Cursor_GetPositionFromMouse(lParam, s, &row, &col);
 
         // Update titik akhir seleksi berdasarkan pergerakan kursor
-        s->selection.end.row = row;
-        s->selection.end.col = col;
+        Selection_SetEnd(s, row, col);
 
         // Kursor pengetikan juga mengikuti arah drag
-        s->textBuffer.cursorRow = row;
-        s->textBuffer.cursorCol = col;
+       Buffer_SetCursorPosition(&s->textBuffer, row, col);
         Cursor_ResetBlink(hWnd, s);
         InvalidateRect(hWnd, NULL, FALSE);  // Refresh layar untuk menggambar block biru
     }
@@ -100,8 +98,7 @@ LRESULT Mouse_OnLButtonUp(HWND hWnd, WPARAM wParam, LPARAM lParam)
         if (!s_isWordLineSelection) {
             int row, col;
             Cursor_GetPositionFromMouse(lParam, s, &row, &col);
-            s->selection.end.row = row;
-            s->selection.end.col = col;
+            Selection_SetEnd(s, row, col);
         }
 
         // Cek kembali: jika Start = End sama (cuma klik 1 tempat), lepas block-nya
