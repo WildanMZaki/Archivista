@@ -11,6 +11,8 @@
 #include <string.h>
 #include "../Header/search.h"
 #include "../Header/zoom.h"
+#include "../Header/config.h"
+#include "../Header/utils.h"
 
 static void App_CopyHistoryText(char *dst, size_t dstSize, const char *src)
 {
@@ -85,8 +87,12 @@ LRESULT App_OnCreate(HWND hWnd)
   HMENU hMenu = CreateAppMenu();
   SetMenu(hWnd, hMenu);
 
-  s->fontSize = ZOOM_DEFAULT;
-  s->editorFont = CustomFontCanvas(FONT_NAME, FONT_HEIGHT, FONT_WIDTH);
+  int loadedSize = Config_ReadInt("Settings", "ZoomSize", ZOOM_DEFAULT);
+  if (loadedSize < ZOOM_MIN || loadedSize > ZOOM_MAX) {
+    loadedSize = ZOOM_DEFAULT;
+  }
+  s->fontSize = loadedSize;
+  s->editorFont = CustomFontCanvas(FONT_NAME, s->fontSize, FONT_WIDTH);
   if (!s->editorFont)
   {
     MessageBox(hWnd, "Font creation failed", "Error", MB_ICONERROR);

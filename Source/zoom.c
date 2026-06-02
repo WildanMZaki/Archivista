@@ -1,6 +1,7 @@
 #include "../Header/zoom.h"
 #include "../Header/render.h"
 #include "../Header/scroll.h"
+#include "../Header/config.h"
 
 void Zoom_Apply(HWND hWnd, AppState *s)
 {
@@ -39,6 +40,9 @@ void Zoom_Apply(HWND hWnd, AppState *s)
 
     // 5. Repaint seluruh area editor
     InvalidateRect(hWnd, NULL, FALSE);
+
+    //Save State to Config
+    Config_WriteInt("Settings", "ZoomSize", s->fontSize);
 }
 
 void Zoom_In(HWND hWnd, AppState *s)
