@@ -1,15 +1,8 @@
 #include "../Header/buffer.h"
+#include "../Header/utils.h"
 #include <stdlib.h>
 #include <string.h>
-
-static int Buffer_ClampInt(int value, int minValue, int maxValue)
-{
-    if (value < minValue)
-        return minValue;
-    if (value > maxValue)
-        return maxValue;
-    return value;
-}
+#include <stdio.h>
 
 static TextLineNode *Buffer_CreateNode(void)
 {
@@ -19,9 +12,402 @@ static TextLineNode *Buffer_CreateNode(void)
 
     node->text[0] = '\0';
     node->len = 0;
+    node->isWrapped = 0;
     node->prev = NULL;
     node->next = NULL;
     return node;
+}
+
+static TextLineNode *Buffer_CreateWrappedNode(void)
+{
+    TextLineNode *node = Buffer_CreateNode();
+    if (node)
+        node->isWrapped = 1;
+    return node;
+}
+
+static TextLineNode *Buffer_InsertWrappedNodeAfter(TextLineNode *node, TextBuffer *buf)
+{
+    TextLineNode *newNode;
+
+    if (!node || !buf)
+        return NULL;
+
+    newNode = Buffer_CreateWrappedNode();
+    if (!newNode)
+        return NULL;
+
+    newNode->prev = node;
+    newNode->next = node->next;
+    if (node->next)
+        node->next->prev = newNode;
+    else
+        buf->tail = newNode;
+
+    node->next = newNode;
+    buf->lineCount++;
+    return newNode;
+}
+
+static void Buffer_MoveCursor(TextBuffer *buf, TextLineNode *node, int row, int col);
+
+// Ensure there is room at the start of node->next to accept one char moved from node.
+static void Buffer_MakeRoomAtNext(TextLineNode *node, TextBuffer *buf)
+{
+    if (!node || !buf)
+        return;
+
+    TextLineNode *next = node->next;
+    if (!next)
+    {
+        next = Buffer_CreateWrappedNode();
+        if (!next)
+            return;
+        next->prev = node;
+        next->next = NULL;
+        node->next = next;
+        buf->tail = next;
+        buf->lineCount++;
+    }
+
+    if (next->len >= BUF_MAX_COLS - 1)
+    {
+        // next is full, make room recursively first
+        Buffer_MakeRoomAtNext(next, buf);
+    }
+
+    if (next->len < BUF_MAX_COLS - 1)
+    {
+        char carry = node->text[node->len - 1];
+        memmove(&next->text[1], &next->text[0], (size_t)next->len);
+        next->text[0] = carry;
+        next->len++;
+        next->text[next->len] = '\0';
+
+        node->len--;
+        node->text[node->len] = '\0';
+    }
+}
+
+// After deletions inside a node, pull chars from subsequent wrapped nodes to fill this node
+static void Buffer_PullFromNext(TextLineNode *node, TextBuffer *buf)
+{
+    if (!node || !buf)
+        return;
+
+    while (node->len < BUF_MAX_COLS - 1 && node->next && node->next->len > 0 && node->next->isWrapped)
+    {
+        TextLineNode *next = node->next;
+        // move first char from next to end of node
+        node->text[node->len] = next->text[0];
+        node->len++;
+        // shift next left
+        if (next->len > 1)
+            memmove(&next->text[0], &next->text[1], (size_t)(next->len - 1));
+        next->len--;
+        next->text[next->len] = '\0';
+
+        // if next became empty and it was a wrapped node, remove it
+        if (next->len == 0 && next->isWrapped)
+        {
+            TextLineNode *after = next->next;
+            node->next = after;
+            if (after)
+                after->prev = node;
+            else
+                buf->tail = node;
+            free(next);
+            buf->lineCount--;
+        }
+        else
+        {
+            // we've pulled one char, may be able to pull more in next loop iteration
+            continue;
+        }
+    }
+}
+
+static TextLineNode *Buffer_EnsureWrappedNext(TextLineNode *node, TextBuffer *buf, int *ioRow)
+{
+    TextLineNode *target;
+
+    if (!node || !buf)
+        return NULL;
+
+    target = node->next;
+    if (!target || !target->isWrapped)
+    {
+        TextLineNode *newNode = Buffer_CreateWrappedNode();
+        if (!newNode)
+            return NULL;
+
+        newNode->prev = node;
+        newNode->next = target;
+        if (target)
+            target->prev = newNode;
+        else
+            buf->tail = newNode;
+
+        node->next = newNode;
+        buf->lineCount++;
+        target = newNode;
+    }
+
+    if (ioRow)
+        *ioRow = *ioRow + 1;
+
+    return target;
+}
+
+static TextLineNode *Buffer_GetRunStartNode(TextLineNode *node)
+{
+    while (node && node->isWrapped)
+        node = node->prev;
+    return node;
+}
+
+static TextLineNode *Buffer_GetRunEndNode(TextLineNode *node)
+{
+    while (node && node->next && node->next->isWrapped)
+        node = node->next;
+    return node;
+}
+
+static int Buffer_GetNodeRow(const TextBuffer *buf, const TextLineNode *target)
+{
+    int row = 0;
+    TextLineNode *node;
+
+    if (!buf || !target)
+        return 0;
+
+    for (node = buf->head; node; node = node->next, row++)
+    {
+        if (node == target)
+            return row;
+    }
+
+    return 0;
+}
+
+static void Buffer_FreeWrappedNodesAfter(TextLineNode *node, TextBuffer *buf)
+{
+    TextLineNode *extra;
+
+    if (!node || !buf)
+        return;
+
+    extra = node->next;
+    while (extra && extra->isWrapped)
+    {
+        TextLineNode *next = extra->next;
+        free(extra);
+        buf->lineCount--;
+        extra = next;
+    }
+
+    node->next = extra;
+    if (extra)
+        extra->prev = node;
+    else
+        buf->tail = node;
+}
+
+static void Buffer_ReflowRun(TextBuffer *buf, TextLineNode *anchor, int editOffset, int deleteLen, const char *insertStr)
+{
+    if (!buf || !anchor)
+        return;
+
+    TextLineNode *start = Buffer_GetRunStartNode(anchor);
+    TextLineNode *end = Buffer_GetRunEndNode(anchor);
+    int row = Buffer_GetNodeRow(buf, start);
+
+    // 1. Check if the cursor is in this run and calculate its absolute offset
+    int hasCursor = 0;
+    int cursorAbsoluteOffset = 0;
+    int runOffset = 0;
+    for (TextLineNode *n = start; n; n = n->next)
+    {
+        if (n == buf->cursorNode)
+        {
+            hasCursor = 1;
+            cursorAbsoluteOffset = runOffset + buf->cursorCol;
+        }
+        runOffset += n->len;
+        if (n == end)
+            break;
+    }
+
+    int joinedLen = 0;
+    for (TextLineNode *node = start; node; node = node->next)
+    {
+        joinedLen += node->len;
+        if (node == end)
+            break;
+    }
+
+    int insertLen = insertStr ? (int)strlen(insertStr) : 0;
+    char *joined = (char *)malloc((size_t)joinedLen + insertLen + 1);
+    if (!joined)
+        return;
+
+    int offset = 0;
+    for (TextLineNode *node = start; node; node = node->next)
+    {
+        if (node->len > 0)
+        {
+            memcpy(&joined[offset], node->text, (size_t)node->len);
+            offset += node->len;
+        }
+        if (node == end)
+            break;
+    }
+    joined[joinedLen] = '\0';
+
+    if (editOffset < 0)
+        editOffset = 0;
+    if (editOffset > joinedLen)
+        editOffset = joinedLen;
+
+    if (deleteLen < 0)
+        deleteLen = 0;
+    if (editOffset + deleteLen > joinedLen)
+        deleteLen = joinedLen - editOffset;
+
+    if (deleteLen > 0)
+    {
+        memmove(&joined[editOffset], &joined[editOffset + deleteLen], (size_t)(joinedLen - (editOffset + deleteLen)));
+        joinedLen -= deleteLen;
+    }
+
+    if (insertLen > 0)
+    {
+        memmove(&joined[editOffset + insertLen], &joined[editOffset], (size_t)(joinedLen - editOffset));
+        memcpy(&joined[editOffset], insertStr, (size_t)insertLen);
+        joinedLen += insertLen;
+    }
+    joined[joinedLen] = '\0';
+
+    int limit = buf->wrapCols;
+    if (limit <= 0 || limit >= BUF_MAX_COLS - 1)
+        limit = BUF_MAX_COLS - 1;
+
+    TextLineNode *node = start;
+    TextLineNode *lastUsed = NULL;
+    offset = 0;
+
+    if (joinedLen == 0)
+    {
+        start->text[0] = '\0';
+        start->len = 0;
+        lastUsed = start;
+    }
+    else
+    {
+        while (offset < joinedLen)
+        {
+            int chunkLen = joinedLen - offset;
+            if (chunkLen > limit)
+            {
+                chunkLen = limit;
+                if (buf->wordWrapEnabled)
+                {
+                    char boundaryChar = joined[offset + limit];
+                    if (boundaryChar == ' ' || boundaryChar == '\t' || boundaryChar == '\0')
+                    {
+                        chunkLen = limit;
+                    }
+                    else
+                    {
+                        int splitIdx = limit - 1;
+                        while (splitIdx > 0 && joined[offset + splitIdx] != ' ' && joined[offset + splitIdx] != '\t')
+                        {
+                            splitIdx--;
+                        }
+                        if (splitIdx > 0)
+                        {
+                            chunkLen = splitIdx + 1;
+                        }
+                        else
+                        {
+                            chunkLen = limit;
+                        }
+                    }
+                }
+            }
+
+            if (!node)
+            {
+                node = Buffer_InsertWrappedNodeAfter(lastUsed, buf);
+                if (!node)
+                    break;
+            }
+
+            memcpy(node->text, &joined[offset], (size_t)chunkLen);
+            node->len = chunkLen;
+            node->text[chunkLen] = '\0';
+            if (node != start)
+                node->isWrapped = 1;
+
+            lastUsed = node;
+            offset += chunkLen;
+
+            if (offset >= joinedLen)
+                break;
+
+            if (node->next && node->next->isWrapped)
+            {
+                node = node->next;
+                node->isWrapped = 1;
+            }
+            else
+            {
+                node = Buffer_InsertWrappedNodeAfter(node, buf);
+            }
+        }
+    }
+
+    if (lastUsed)
+        Buffer_FreeWrappedNodesAfter(lastUsed, buf);
+
+    if (hasCursor)
+    {
+        int newAbsoluteOffset = cursorAbsoluteOffset;
+        if (deleteLen > 0 || insertLen > 0)
+        {
+            newAbsoluteOffset = editOffset + insertLen;
+        }
+
+        if (newAbsoluteOffset < 0)
+            newAbsoluteOffset = 0;
+        if (newAbsoluteOffset > joinedLen)
+            newAbsoluteOffset = joinedLen;
+
+        int remaining = newAbsoluteOffset;
+        TextLineNode *cursorNode = start;
+        int cursorRow = row;
+
+        while (cursorNode && remaining > cursorNode->len)
+        {
+            remaining -= cursorNode->len;
+            if (cursorNode->next && cursorNode->next->isWrapped)
+            {
+                cursorNode = cursorNode->next;
+                cursorRow++;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (cursorNode)
+        {
+            Buffer_MoveCursor(buf, cursorNode, cursorRow, remaining);
+        }
+    }
+
+    free(joined);
 }
 
 static void Buffer_FreeLineList(TextBuffer *buf)
@@ -119,8 +505,8 @@ static TextPos Buffer_ClampPos(const TextBuffer *buf, TextPos pos)
         return out;
     }
 
-    out.row = Buffer_ClampInt(out.row, 0, buf->lineCount - 1);
-    out.col = Buffer_ClampInt(out.col, 0, Buffer_GetLineLen(buf, out.row));
+    out.row = ClampInt(out.row, 0, buf->lineCount - 1);
+    out.col = ClampInt(out.col, 0, Buffer_GetLineLen(buf, out.row));
     return out;
 }
 
@@ -197,6 +583,8 @@ void Buffer_Init(TextBuffer *buf)
     buf->lineCount = 0;
     buf->cursorRow = 0;
     buf->cursorCol = 0;
+    buf->wrapCols = BUF_MAX_COLS - 1;
+    buf->wordWrapEnabled = 0;
 
     Buffer_Clear(buf);
     Buffer_SetInitBuffer(buf);
@@ -293,19 +681,41 @@ void Buffer_InsertChar(TextBuffer *buf, char c)
     if (!node)
         return;
 
-    ccol = Buffer_ClampInt(buf->cursorCol, 0, node->len);
-    if (node->len >= BUF_MAX_COLS - 1)
-        return;
+    ccol = ClampInt(buf->cursorCol, 0, node->len);
 
-    memmove(&node->text[ccol + 1],
-            &node->text[ccol],
-            (size_t)(node->len - ccol));
+    int limit = buf->wrapCols;
+    if (limit <= 0 || limit >= BUF_MAX_COLS - 1)
+        limit = BUF_MAX_COLS - 1;
 
-    node->text[ccol] = c;
-    node->len++;
-    node->text[node->len] = '\0';
+    if (node->len < limit && !(node->next && node->next->isWrapped))
+    {
+        memmove(&node->text[ccol + 1],
+                &node->text[ccol],
+                (size_t)(node->len - ccol));
 
-    Buffer_MoveCursor(buf, node, buf->cursorRow, ccol + 1);
+        node->text[ccol] = c;
+        node->len++;
+        node->text[node->len] = '\0';
+
+        Buffer_MoveCursor(buf, node, buf->cursorRow, ccol + 1);
+    }
+    else
+    {
+        TextLineNode *start = Buffer_GetRunStartNode(node);
+        int offset = 0;
+        for (TextLineNode *n = start; n; n = n->next)
+        {
+            if (n == node)
+            {
+                offset += ccol;
+                break;
+            }
+            offset += n->len;
+        }
+
+        char str[2] = {c, '\0'};
+        Buffer_ReflowRun(buf, node, offset, 0, str);
+    }
 }
 
 void Buffer_InsertNewline(TextBuffer *buf)
@@ -323,7 +733,7 @@ void Buffer_InsertNewline(TextBuffer *buf)
     if (!node)
         return;
 
-    ccol = Buffer_ClampInt(buf->cursorCol, 0, node->len);
+    ccol = ClampInt(buf->cursorCol, 0, node->len);
 
     newNode = Buffer_CreateNode();
     if (!newNode)
@@ -355,6 +765,11 @@ void Buffer_InsertNewline(TextBuffer *buf)
     buf->lineCount++;
     nextRow = buf->cursorRow + 1;
     Buffer_MoveCursor(buf, newNode, nextRow, 0);
+
+    if (newNode->next && newNode->next->isWrapped)
+    {
+        Buffer_ReflowRun(buf, newNode, 0, 0, NULL);
+    }
 }
 
 void Buffer_Backspace(TextBuffer *buf)
@@ -369,17 +784,35 @@ void Buffer_Backspace(TextBuffer *buf)
     if (!node)
         return;
 
-    ccol = Buffer_ClampInt(buf->cursorCol, 0, node->len);
+    ccol = ClampInt(buf->cursorCol, 0, node->len);
 
     if (ccol > 0)
     {
-        memmove(&node->text[ccol - 1],
-                &node->text[ccol],
-                (size_t)(node->len - ccol));
+        if (!(node->next && node->next->isWrapped) && !node->isWrapped)
+        {
+            memmove(&node->text[ccol - 1],
+                    &node->text[ccol],
+                    (size_t)(node->len - ccol));
 
-        node->len--;
-        node->text[node->len] = '\0';
-        Buffer_MoveCursor(buf, node, buf->cursorRow, ccol - 1);
+            node->len--;
+            node->text[node->len] = '\0';
+            Buffer_MoveCursor(buf, node, buf->cursorRow, ccol - 1);
+            return;
+        }
+
+        TextLineNode *start = Buffer_GetRunStartNode(node);
+        int offset = 0;
+        for (TextLineNode *n = start; n; n = n->next)
+        {
+            if (n == node)
+            {
+                offset += ccol;
+                break;
+            }
+            offset += n->len;
+        }
+
+        Buffer_ReflowRun(buf, node, offset - 1, 1, NULL);
         return;
     }
 
@@ -388,41 +821,35 @@ void Buffer_Backspace(TextBuffer *buf)
 
     {
         TextLineNode *prev = node->prev;
-        int prevLen;
-        int cursorCol;
-        int canCopy;
-
         if (!prev)
             return;
 
-        prevLen = prev->len;
-        cursorCol = prevLen;
-        canCopy = node->len;
-        if (prevLen + canCopy > BUF_MAX_COLS - 1)
-            canCopy = (BUF_MAX_COLS - 1) - prevLen;
-
-        if (canCopy > 0)
+        if (node->isWrapped)
         {
-            memcpy(&prev->text[prevLen], node->text, (size_t)canCopy);
-            prevLen += canCopy;
-            prev->len = prevLen;
-            prev->text[prevLen] = '\0';
-        }
-
-        prev->next = node->next;
-        if (node->next)
-        {
-            node->next->prev = prev;
+            TextLineNode *start = Buffer_GetRunStartNode(node);
+            int offset = 0;
+            for (TextLineNode *n = start; n; n = n->next)
+            {
+                if (n == node)
+                    break;
+                offset += n->len;
+            }
+            Buffer_ReflowRun(buf, node, offset - 1, 1, NULL);
         }
         else
         {
-            buf->tail = prev;
+            TextLineNode *start1 = Buffer_GetRunStartNode(prev);
+            int len1 = 0;
+            for (TextLineNode *n = start1; n; n = n->next)
+            {
+                len1 += n->len;
+                if (n == prev)
+                    break;
+            }
+
+            node->isWrapped = 1;
+            Buffer_ReflowRun(buf, start1, len1, 0, NULL);
         }
-
-        free(node);
-        buf->lineCount--;
-
-        Buffer_MoveCursor(buf, prev, buf->cursorRow - 1, cursorCol);
     }
 }
 
@@ -438,48 +865,48 @@ void Buffer_Delete(TextBuffer *buf)
     if (!node)
         return;
 
-    ccol = Buffer_ClampInt(buf->cursorCol, 0, node->len);
+    ccol = ClampInt(buf->cursorCol, 0, node->len);
+
+    TextLineNode *start = Buffer_GetRunStartNode(node);
+    int offset = 0;
+    for (TextLineNode *n = start; n; n = n->next)
+    {
+        if (n == node)
+        {
+            offset += ccol;
+            break;
+        }
+        offset += n->len;
+    }
 
     if (ccol < node->len)
     {
-        memmove(&node->text[ccol],
-                &node->text[ccol + 1],
-                (size_t)(node->len - ccol - 1));
+        if (!(node->next && node->next->isWrapped) && !node->isWrapped)
+        {
+            memmove(&node->text[ccol],
+                    &node->text[ccol + 1],
+                    (size_t)(node->len - ccol - 1));
 
-        node->len--;
-        node->text[node->len] = '\0';
+            node->len--;
+            node->text[node->len] = '\0';
+            return;
+        }
+
+        Buffer_ReflowRun(buf, node, offset, 1, NULL);
         return;
     }
 
     if (!node->next)
         return;
 
+    if (node->next->isWrapped)
     {
-        TextLineNode *next = node->next;
-        int canCopy = next->len;
-
-        if (node->len + canCopy > BUF_MAX_COLS - 1)
-            canCopy = (BUF_MAX_COLS - 1) - node->len;
-
-        if (canCopy > 0)
-        {
-            memcpy(&node->text[node->len], next->text, (size_t)canCopy);
-            node->len += canCopy;
-            node->text[node->len] = '\0';
-        }
-
-        node->next = next->next;
-        if (next->next)
-        {
-            next->next->prev = node;
-        }
-        else
-        {
-            buf->tail = node;
-        }
-
-        free(next);
-        buf->lineCount--;
+        Buffer_ReflowRun(buf, node, offset, 1, NULL);
+    }
+    else
+    {
+        node->next->isWrapped = 1;
+        Buffer_ReflowRun(buf, node, offset, 0, NULL);
     }
 }
 
@@ -530,22 +957,38 @@ char *Buffer_GetSelectedString(const TextBuffer *buf, const TextSelection *sel)
 
     Buffer_NormalizeSelection(buf, sel, &start, &end);
 
-    if (start.row == end.row)
-    {
-        totalLen = end.col - start.col;
-    }
-    else
-    {
-        totalLen += Buffer_GetLineLen(buf, start.row) - start.col;
-        totalLen += 2; // "\r\n"
+    TextLineNode *startNode = Buffer_GetLineNodeAtRow(buf, start.row);
+    TextLineNode *endNode = Buffer_GetLineNodeAtRow(buf, end.row);
+    if (!startNode || !endNode)
+        return NULL;
 
-        for (int row = start.row + 1; row < end.row; row++)
+    TextLineNode *node = startNode;
+    while (node)
+    {
+        if (node == startNode && node == endNode)
         {
-            totalLen += Buffer_GetLineLen(buf, row);
-            totalLen += 2; // "\r\n"
+            totalLen += end.col - start.col;
+        }
+        else if (node == startNode)
+        {
+            totalLen += node->len - start.col;
+            if (node->next && !node->next->isWrapped)
+                totalLen += 2;
+        }
+        else if (node == endNode)
+        {
+            totalLen += end.col;
+        }
+        else
+        {
+            totalLen += node->len;
+            if (node->next && !node->next->isWrapped)
+                totalLen += 2;
         }
 
-        totalLen += end.col;
+        if (node == endNode)
+            break;
+        node = node->next;
     }
 
     char *result = (char *)malloc((size_t)totalLen + 1);
@@ -553,44 +996,59 @@ char *Buffer_GetSelectedString(const TextBuffer *buf, const TextSelection *sel)
         return NULL;
 
     char *ptr = result;
-
-    if (start.row == end.row)
+    node = startNode;
+    while (node)
     {
-        int len = end.col - start.col;
-        if (len > 0)
+        if (node == startNode && node == endNode)
         {
-            memcpy(ptr, &Buffer_GetLineText(buf, start.row)[start.col], (size_t)len);
-            ptr += len;
-        }
-    }
-    else
-    {
-        int firstLen = Buffer_GetLineLen(buf, start.row) - start.col;
-        if (firstLen > 0)
-        {
-            memcpy(ptr, &Buffer_GetLineText(buf, start.row)[start.col], (size_t)firstLen);
-            ptr += firstLen;
-        }
-        *ptr++ = '\r';
-        *ptr++ = '\n';
-
-        for (int row = start.row + 1; row < end.row; row++)
-        {
-            int len = Buffer_GetLineLen(buf, row);
+            int len = end.col - start.col;
             if (len > 0)
             {
-                memcpy(ptr, Buffer_GetLineText(buf, row), (size_t)len);
+                memcpy(ptr, &node->text[start.col], (size_t)len);
                 ptr += len;
             }
-            *ptr++ = '\r';
-            *ptr++ = '\n';
+        }
+        else if (node == startNode)
+        {
+            int len = node->len - start.col;
+            if (len > 0)
+            {
+                memcpy(ptr, &node->text[start.col], (size_t)len);
+                ptr += len;
+            }
+            if (node->next && !node->next->isWrapped)
+            {
+                *ptr++ = '\r';
+                *ptr++ = '\n';
+            }
+        }
+        else if (node == endNode)
+        {
+            int len = end.col;
+            if (len > 0)
+            {
+                memcpy(ptr, node->text, (size_t)len);
+                ptr += len;
+            }
+        }
+        else
+        {
+            int len = node->len;
+            if (len > 0)
+            {
+                memcpy(ptr, node->text, (size_t)len);
+                ptr += len;
+            }
+            if (node->next && !node->next->isWrapped)
+            {
+                *ptr++ = '\r';
+                *ptr++ = '\n';
+            }
         }
 
-        if (end.col > 0)
-        {
-            memcpy(ptr, Buffer_GetLineText(buf, end.row), (size_t)end.col);
-            ptr += end.col;
-        }
+        if (node == endNode)
+            break;
+        node = node->next;
     }
 
     *ptr = '\0';
@@ -607,82 +1065,137 @@ int Buffer_DeleteSelection(TextBuffer *buf, const TextSelection *sel)
 
     Buffer_NormalizeSelection(buf, sel, &start, &end);
 
-    if (start.row == end.row)
+    TextLineNode *startNode = Buffer_GetLineNodeAtRow(buf, start.row);
+    TextLineNode *endNode = Buffer_GetLineNodeAtRow(buf, end.row);
+    if (!startNode || !endNode)
+        return 0;
+
+    TextLineNode *startRun = Buffer_GetRunStartNode(startNode);
+    TextLineNode *endRun = Buffer_GetRunStartNode(endNode);
+
+    if (startRun == endRun)
     {
-        TextLineNode *node = Buffer_GetLineNodeAtRow(buf, start.row);
-        int len;
-        int removeLen = end.col - start.col;
+        int startOffset = 0;
+        for (TextLineNode *n = startRun; n; n = n->next)
+        {
+            if (n == startNode)
+            {
+                startOffset += start.col;
+                break;
+            }
+            startOffset += n->len;
+        }
 
-        if (!node)
-            return 0;
+        int endOffset = 0;
+        for (TextLineNode *n = startRun; n; n = n->next)
+        {
+            if (n == endNode)
+            {
+                endOffset += end.col;
+                break;
+            }
+            endOffset += n->len;
+        }
 
-        len = node->len;
-        memmove(&node->text[start.col],
-                &node->text[end.col],
-                (size_t)(len - end.col));
-
-        len -= removeLen;
-        node->len = len;
-        node->text[len] = '\0';
+        Buffer_ReflowRun(buf, startRun, startOffset, endOffset - startOffset, NULL);
     }
     else
     {
-        TextLineNode *startNode = Buffer_GetLineNodeAtRow(buf, start.row);
-        TextLineNode *endNode = Buffer_GetLineNodeAtRow(buf, end.row);
-        TextLineNode *afterEnd;
-        TextLineNode *rowNode;
-        int startLen;
-        int endTailLen;
-        int copyTailLen;
-        int removeLines;
+        int startOffset = 0;
+        for (TextLineNode *n = startRun; n; n = n->next)
+        {
+            if (n == startNode)
+            {
+                startOffset += start.col;
+                break;
+            }
+            startOffset += n->len;
+        }
 
-        if (!startNode || !endNode)
+        int endOffset = 0;
+        for (TextLineNode *n = endRun; n; n = n->next)
+        {
+            if (n == endNode)
+            {
+                endOffset += end.col;
+                break;
+            }
+            endOffset += n->len;
+        }
+
+        TextLineNode *endRunLast = Buffer_GetRunEndNode(endNode);
+        int endRunLen = 0;
+        for (TextLineNode *n = endRun; n; n = n->next)
+        {
+            endRunLen += n->len;
+            if (n == endRunLast)
+                break;
+        }
+
+        int part2Len = endRunLen - endOffset;
+        char *part2 = (char *)malloc((size_t)part2Len + 1);
+        if (!part2)
             return 0;
 
-        startLen = start.col;
-        endTailLen = endNode->len - end.col;
-        copyTailLen = endTailLen;
-
-        if (startLen + copyTailLen > BUF_MAX_COLS - 1)
-            copyTailLen = (BUF_MAX_COLS - 1) - startLen;
-
-        if (copyTailLen > 0)
+        int dst = 0;
+        int copyStarted = 0;
+        for (TextLineNode *n = endRun; n; n = n->next)
         {
-            memcpy(&startNode->text[startLen],
-                   &endNode->text[end.col],
-                   (size_t)copyTailLen);
+            if (n == endNode)
+            {
+                copyStarted = 1;
+                int len = n->len - end.col;
+                if (len > 0)
+                {
+                    memcpy(&part2[dst], &n->text[end.col], (size_t)len);
+                    dst += len;
+                }
+            }
+            else if (copyStarted)
+            {
+                if (n->len > 0)
+                {
+                    memcpy(&part2[dst], n->text, (size_t)n->len);
+                    dst += n->len;
+                }
+            }
+            if (n == endRunLast)
+                break;
+        }
+        part2[dst] = '\0';
+
+        TextLineNode *nextFree = startNode->next;
+        int freedCount = 0;
+        while (nextFree && nextFree != endRunLast->next)
+        {
+            TextLineNode *temp = nextFree->next;
+            free(nextFree);
+            freedCount++;
+            nextFree = temp;
         }
 
-        startNode->len = startLen + copyTailLen;
-        startNode->text[startNode->len] = '\0';
-
-        removeLines = end.row - start.row;
-        afterEnd = endNode->next;
-
-        rowNode = startNode->next;
-        while (rowNode && rowNode != afterEnd)
-        {
-            TextLineNode *next = rowNode->next;
-            free(rowNode);
-            rowNode = next;
-        }
-
-        startNode->next = afterEnd;
-        if (afterEnd)
-        {
-            afterEnd->prev = startNode;
-        }
+        startNode->next = nextFree;
+        if (nextFree)
+            nextFree->prev = startNode;
         else
-        {
             buf->tail = startNode;
-        }
 
-        buf->lineCount -= removeLines;
+        buf->lineCount -= freedCount;
         if (buf->lineCount < 1)
             buf->lineCount = 1;
+
+        int startRunLen = 0;
+        for (TextLineNode *n = startRun; n; n = n->next)
+        {
+            startRunLen += n->len;
+            if (n == startNode)
+                break;
+        }
+
+        Buffer_ReflowRun(buf, startRun, startOffset, startRunLen - startOffset, part2);
+        free(part2);
     }
 
-    Buffer_SetCursorPosition(buf, start.row, start.col);
     return 1;
 }
 
@@ -704,8 +1217,8 @@ char *Buffer_ToString(const TextBuffer *buf)
     for (node = buf->head; node; node = node->next)
     {
         totalLen += node->len;
-        if (node->next)
-            totalLen += 2; // "\r\n"
+        if (node->next && !node->next->isWrapped)
+            totalLen += 2;
     }
 
     char *result = (char *)malloc((size_t)totalLen + 1);
@@ -721,7 +1234,7 @@ char *Buffer_ToString(const TextBuffer *buf)
             ptr += node->len;
         }
 
-        if (node->next)
+        if (node->next && !node->next->isWrapped)
         {
             *ptr++ = '\r';
             *ptr++ = '\n';
@@ -782,6 +1295,21 @@ void Buffer_FromString(TextBuffer *buf, const char *str)
                 node->len++;
                 node->text[node->len] = '\0';
             }
+            else
+            {
+                TextLineNode *newNode = Buffer_CreateWrappedNode();
+                if (!newNode)
+                    break;
+                newNode->prev = node;
+                newNode->next = NULL;
+                node->next = newNode;
+                buf->tail = newNode;
+                buf->lineCount++;
+                node = newNode;
+                node->text[node->len] = *p;
+                node->len = 1;
+                node->text[1] = '\0';
+            }
         }
     }
 
@@ -828,9 +1356,6 @@ InsertStringResult Buffer_InsertString(TextBuffer *buf, const char *str, const T
         }
         else
         {
-            if (Buffer_GetLineLen(buf, buf->cursorRow) >= BUF_MAX_COLS - 1)
-                break;
-
             *outPtr++ = *p;
             outLen += 1;
             Buffer_InsertChar(buf, *p);
@@ -861,4 +1386,22 @@ void Buffer_FreeInsertStringResult(InsertStringResult *result)
 
     result->removedLen = 0;
     result->insertedLen = 0;
+}
+
+void Buffer_ReflowAll(TextBuffer *buf)
+{
+    if (!buf)
+        return;
+
+    TextLineNode *node = buf->head;
+    while (node)
+    {
+        TextLineNode *nextLogical = node;
+        do {
+            nextLogical = nextLogical->next;
+        } while (nextLogical && nextLogical->isWrapped);
+
+        Buffer_ReflowRun(buf, node, 0, 0, NULL);
+        node = nextLogical;
+    }
 }

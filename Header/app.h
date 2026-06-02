@@ -10,6 +10,9 @@ typedef struct AppState
   HFONT editorFont;
   int fontSize;
 
+  // Word wrap toggle (visual projection)
+  BOOL wordWrapEnabled;
+
   BOOL cursorVisible; // blink state
   int charWidth;
   int charHeight;

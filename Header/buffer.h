@@ -3,11 +3,13 @@
 
 // Max visible chars per row = 1000, plus 1 for '\0'
 #define BUF_MAX_COLS 1001
+// #define BUF_MAX_COLS 101
 
 typedef struct TextLineNode
 {
     char text[BUF_MAX_COLS];
     int len;
+    int isWrapped; // 1 if this node was created by automatic overflow (soft-wrap), 0 for explicit newline
     struct TextLineNode *prev;
     struct TextLineNode *next;
 } TextLineNode;
@@ -22,6 +24,8 @@ typedef struct
     int lineCount; // minimal 1
     int cursorRow;
     int cursorCol;
+    int wrapCols;
+    int wordWrapEnabled;
 } TextBuffer;
 
 typedef struct
@@ -74,5 +78,6 @@ int Buffer_DeleteSelection(TextBuffer *buf, const TextSelection *sel);          
 // ========== Conversion ==========
 char *Buffer_ToString(const TextBuffer *buf); // Caller must free() the result
 void Buffer_FromString(TextBuffer *buf, const char *str);
+void Buffer_ReflowAll(TextBuffer *buf);
 
 #endif // ARCHIVISTA_BUFFER_H
