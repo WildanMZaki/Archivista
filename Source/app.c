@@ -400,6 +400,41 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       Search_ShowGotoDialog(hWnd);
       return 0;
 
+  case ID_VIEW_WORDWRAP:
+  {
+      s->wordWrapEnabled = !s->wordWrapEnabled;
+      s->textBuffer.wordWrapEnabled = s->wordWrapEnabled;
+
+      // Update menu checkmark
+      HMENU hMenu = GetMenu(hWnd);
+      if (hMenu)
+      {
+          CheckMenuItem(hMenu, ID_VIEW_WORDWRAP, s->wordWrapEnabled ? MF_CHECKED : MF_UNCHECKED);
+      }
+
+      // Recalculate wrapCols
+      if (s->wordWrapEnabled)
+      {
+          RECT rc;
+          GetClientRect(hWnd, &rc);
+          int clientWidth = rc.right - rc.left;
+          int charWidth = s->charWidth > 0 ? s->charWidth : 1;
+          int wrapCols = (clientWidth - TEXT_PADDING_LEFT) / charWidth;
+          s->textBuffer.wrapCols = (wrapCols < 10) ? 10 : wrapCols;
+      }
+      else
+      {
+          s->textBuffer.wrapCols = BUF_MAX_COLS - 1;
+      }
+
+      // Reflow all lines in the buffer
+      Buffer_ReflowAll(&s->textBuffer);
+
+      // Refresh editor UI
+      App_RefreshEditorAfterAction(hWnd, s);
+      return 0;
+  }
+
   case ID_VIEW_ZOOM_IN:
       Zoom_In(hWnd, s);
       return 0;

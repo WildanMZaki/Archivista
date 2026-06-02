@@ -5,6 +5,7 @@
 #include "../Header/render.h"
 #include "../Header/search.h"
 #include "../Header/scroll.h"
+#include "../Header/main.h"
 
 LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -37,8 +38,29 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return App_OnTimer(hWnd, wParam);
 
   case WM_SIZE:
-    Scroll_UpdateScrollbars(hWnd);
-    return 0;
+    {
+      AppState *s = App_GetState(hWnd);
+      if (s)
+      {
+          if (s->wordWrapEnabled)
+          {
+              RECT rc;
+              GetClientRect(hWnd, &rc);
+              int clientWidth = rc.right - rc.left;
+              int charWidth = s->charWidth > 0 ? s->charWidth : 1;
+              int wrapCols = (clientWidth - TEXT_PADDING_LEFT) / charWidth;
+              s->textBuffer.wrapCols = (wrapCols < 10) ? 10 : wrapCols;
+              Buffer_ReflowAll(&s->textBuffer);
+          }
+          Scroll_UpdateScrollbars(hWnd);
+          Scroll_EnsureCursorVisible(hWnd);
+      }
+      else
+      {
+          Scroll_UpdateScrollbars(hWnd);
+      }
+      return 0;
+    }
 
   case WM_PAINT:
     return Render_OnPaint(hWnd);
