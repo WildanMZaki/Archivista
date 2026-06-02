@@ -38,7 +38,7 @@ BOOL InitInstance(HINSTANCE hinstance, int nCmdShow)
     hwnd = CreateWindow(
         APP_TITLE,
         APP_TITLE,
-        WS_OVERLAPPEDWINDOW,
+        WS_OVERLAPPEDWINDOW | WS_VSCROLL | WS_HSCROLL,
         posX,
         posY,
         APP_WIDTH,

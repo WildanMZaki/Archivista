@@ -3,10 +3,12 @@
 
 #include <windows.h>
 #include "buffer.h"
+#include "history.h"
 
 typedef struct AppState
 {
   HFONT editorFont;
+  int fontSize;
 
   BOOL cursorVisible; // blink state
   int charWidth;
@@ -21,11 +23,17 @@ typedef struct AppState
   BOOL isEdited;
   TextBuffer textBuffer;
   TextSelection selection;
+  EditHistory history;
+
+  // For tracking composition of actions (e.g., multi-char insert)
+  BOOL isComposingAction;
+  HistoryAction currentAction;
 } AppState;
 
 // Store/retrieve state via GWLP_USERDATA
 void App_AttachState(HWND hWnd, AppState *state);
 AppState *App_GetState(HWND hWnd);
+void App_SyncEditedState(AppState *s);
 
 // Refresh editor UI after cursor/text/selection state changes.
 void App_RefreshEditorAfterAction(HWND hWnd, AppState *s);

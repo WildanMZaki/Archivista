@@ -1,6 +1,7 @@
 #include "../Header/fileops.h"
 #include "../Header/buffer.h"
 #include "../Header/recent.h"
+#include "../Header/cursor.h"
 
 static OPENFILENAME InitOpenFile(HWND hWnd, AppState *s) {
   OPENFILENAME ofn = {sizeof(OPENFILENAME)};
@@ -12,6 +13,36 @@ static OPENFILENAME InitOpenFile(HWND hWnd, AppState *s) {
   ofn.nMaxFile = sizeof(s->currentFilePath);
   ofn.Flags = OFN_OVERWRITEPROMPT | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
   return ofn;
+}
+
+BOOL ConfirmSave(HWND hWnd, AppState *s) {
+  App_SyncEditedState(s);
+  if (Buffer_IsBufferSavable(&s->textBuffer)) {
+    int msgboxID = MessageBox(
+        hWnd,
+        "The document has been modified. Do you want to save the changes?",
+        "Save Changes", MB_YESNOCANCEL | MB_ICONQUESTION | MB_TOPMOST | MB_SETFOREGROUND);
+    switch (msgboxID) {
+      case IDYES:
+        return FileOps_Save(hWnd, s);
+        break;
+      case IDCANCEL:
+        return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+void FileOps_New(HWND hWnd, AppState *s) {
+  if (!ConfirmSave(hWnd, s)) return;
+
+  Buffer_Clear(&s->textBuffer); // Clear Buffer
+  Buffer_SetInitBuffer(&s->textBuffer);
+  s->currentFilePath[0] = '\0'; // Reset Current File Path
+  Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
+  App_RefreshEditorAfterAction(hWnd, s);
+  App_SyncEditedState(s);
 }
 
 static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
@@ -44,115 +75,72 @@ static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
   CloseHandle(hFile);
   Buffer_Clear(&s->textBuffer);
   Buffer_FromString(&s->textBuffer, buffer);
+  Buffer_SetInitBuffer(&s->textBuffer);
   strcpy(s->currentFilePath, path);
   free(buffer);
   return TRUE;
 }
 
-BOOL ConfirmSave(HWND hWnd, AppState *s) {
-  if (s->isEdited) {
-    int msgboxID = MessageBox(
-        hWnd,
-        "The document has been modified. Do you want to save the changes?",
-        "Save Changes", MB_YESNOCANCEL | MB_ICONQUESTION | MB_TOPMOST | MB_SETFOREGROUND);
-    switch (msgboxID) {
-      case IDYES:
-        FileOps_Save(hWnd, s);
-        break;
-      case IDCANCEL:
-        return FALSE;
-    }
+BOOL FileOps_Open(HWND hWnd, AppState *s, char *path) {
+  if (!ConfirmSave(hWnd, s)) return FALSE;
+
+  if (path != NULL) return FileOps_OpenFile(hWnd, s, path);
+
+  OPENFILENAME ofn = InitOpenFile(hWnd, s);
+  ofn.lpstrTitle = "Open File";
+
+  //if path is null (not from recent)
+  if (!GetOpenFileName(&ofn)) return FALSE;
+
+  if (!FileOps_OpenFile(hWnd, s, ofn.lpstrFile)) {
+    MessageBox(hWnd, "Failed to open file", "Error", MB_ICONERROR);
+    return FALSE;
   }
 
+  Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
+  App_RefreshEditorAfterAction(hWnd, s);
+  App_SyncEditedState(s);
   return TRUE;
 }
 
-static void ResetCursor(HWND hWnd, AppState *s) {
-  s->selection.active = 0;           // Disable Selection
-  s->scrollX = 0;                    // Reset Scroll X
-  s->scrollY = 0;                    // Reset Scroll Y
-  InvalidateRect(hWnd, NULL, FALSE); // Refresh Screen
-}
-
-void FileOps_New(HWND hWnd, AppState *s) {
-  if (!ConfirmSave(hWnd, s)) return;
-
-  Buffer_Clear(&s->textBuffer); // Clear Buffer
-  s->currentFilePath[0] = '\0'; // Reset Current File Path
-  ResetCursor(hWnd, s);
-  s->isEdited = FALSE;
-}
-
-void FileOps_Open(HWND hWnd, AppState *s, char *path) {
-  if (!ConfirmSave(hWnd, s)) return;
-
-  // Initialize Open File Dialog
-  if (path != NULL) {
-    FileOps_OpenFile(hWnd, s, path);
-  } else {
-    OPENFILENAME ofn = InitOpenFile(hWnd, s);
-    ofn.lpstrTitle = "Open File";
-
-    if (GetOpenFileName(&ofn)) {
-      if (!FileOps_OpenFile(hWnd, s, ofn.lpstrFile)) {
-        MessageBox(hWnd, "Failed to open file", "Error", MB_ICONERROR);
-      }
-    }
-  }
-  ResetCursor(hWnd, s);
-  s->isEdited = FALSE;
-}
-
-void FileOps_Save(HWND hWnd, AppState *s) {
-  if (s->currentFilePath[0] == '\0') {
-    FileOps_SaveAs(hWnd, s);
-    return;
-  }
-  HANDLE hFile = CreateFile(s->currentFilePath, GENERIC_WRITE, 0, NULL,
-                            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+BOOL FileOps_WriteToPath(HWND hWnd, AppState *s, const char *path) {
+  HANDLE hFile = CreateFile(path, GENERIC_WRITE, 0, NULL,
+                          CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == INVALID_HANDLE_VALUE) {
     MessageBox(hWnd, "Failed to save file", "Error", MB_ICONERROR);
-    return;
+    return FALSE;
   }
+
   DWORD bytesWritten;
   char *strBuf = Buffer_ToString(&s->textBuffer);
   if (!WriteFile(hFile, strBuf, strlen(strBuf), &bytesWritten, NULL)) {
     MessageBox(hWnd, "Failed to write file", "Error", MB_ICONERROR);
     free(strBuf);
     CloseHandle(hFile);
-    return;
+    return FALSE;
   }
-  s->isEdited = FALSE;
+
+  Buffer_SetInitBuffer(&s->textBuffer);
+  App_SyncEditedState(s);
   free(strBuf);
   CloseHandle(hFile);
-  Recent_AddRecent(s, s->currentFilePath);
-  Recent_UpdateMenuRecent(GetMenu(hWnd), s);
+  Recent_AddRecent(path);
+  Recent_UpdateMenuRecent(GetMenu(hWnd));
+  return TRUE;
 }
 
-void FileOps_SaveAs(HWND hWnd, AppState *s) {
+BOOL FileOps_Save(HWND hWnd, AppState *s) {
+  if (s->currentFilePath[0] == '\0') return FileOps_SaveAs(hWnd, s);
+
+  return FileOps_WriteToPath(hWnd, s, s->currentFilePath);
+}
+
+BOOL FileOps_SaveAs(HWND hWnd, AppState *s) {
   // Initialize Save As Dialog
   OPENFILENAME ofn = InitOpenFile(hWnd, s);
   ofn.lpstrTitle = "Save As";
 
-  if (GetSaveFileName(&ofn)) {
-    HANDLE hFile = CreateFile(ofn.lpstrFile, GENERIC_WRITE, 0, NULL,
-                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (hFile == INVALID_HANDLE_VALUE) {
-      MessageBox(hWnd, "Failed to save file", "Error", MB_ICONERROR);
-      return;
-    }
-    DWORD bytesWritten;
-    char *strBuf = Buffer_ToString(&s->textBuffer);
-    if (!WriteFile(hFile, strBuf, strlen(strBuf), &bytesWritten, NULL)) {
-      MessageBox(hWnd, "Failed to write file", "Error", MB_ICONERROR);
-      free(strBuf);
-      CloseHandle(hFile);
-      return;
-    }
-    s->isEdited = FALSE;
-    free(strBuf);
-    CloseHandle(hFile);
-    Recent_AddRecent(s, ofn.lpstrFile);
-    Recent_UpdateMenuRecent(GetMenu(hWnd), s);
-  }
+  if (!GetSaveFileName(&ofn)) return FALSE;
+
+  return FileOps_WriteToPath(hWnd, s, ofn.lpstrFile);
 }

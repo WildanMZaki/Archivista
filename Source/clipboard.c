@@ -1,0 +1,48 @@
+#include "../Header/clipboard.h"
+
+
+void Clipboard_Copy(HWND hWnd,  char *stringIn) {
+    if (!OpenClipboard(hWnd)) return;
+    EmptyClipboard();
+
+    int len = strlen(stringIn);
+
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len + 1);
+    if (!hMem) {
+        CloseClipboard();
+        MessageBoxA(hWnd, "Alloc Failed for copy", "Archivista", 0);
+        return;
+    }
+
+    char *buffer = GlobalLock(hMem);
+    if (!buffer) { // in case buffer is null
+        CloseClipboard();
+        MessageBoxA(hWnd, "Failed to copy", "Archivista", 0);
+        return;
+    }
+
+    memcpy(buffer, stringIn, len + 1);
+    GlobalUnlock(hMem);
+
+    SetClipboardData(CF_TEXT, hMem);
+    CloseClipboard();
+}
+
+char *Clipboard_Paste(HWND hWnd) {
+    char *result = NULL;
+    if (!OpenClipboard(hWnd)) return result;
+
+    HGLOBAL hMem = GetClipboardData(CF_TEXT);
+    if (hMem) {
+        char *buffer = GlobalLock(hMem);
+        if (!buffer) { // in case buffer is null
+            CloseClipboard();
+            return result;
+        }
+        result = _strdup(buffer);
+        GlobalUnlock(hMem);
+    }
+
+    CloseClipboard();
+    return result;
+}

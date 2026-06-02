@@ -3,10 +3,25 @@
 #include "../Header/keyboard.h"
 #include "../Header/mouse.h"
 #include "../Header/render.h"
+#include "../Header/search.h"
+#include "../Header/scroll.h"
 
-LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam,
-                         LPARAM lParam) {
-  switch (message) {
+LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+  // Pastikan uFindReplaceMsg tidak bernilai 0 (sudah diinisialisasi)
+  if (g_searchState.uFindReplaceMsg != 0 &&
+      message == g_searchState.uFindReplaceMsg)
+  {
+    AppState *appState = App_GetState(hWnd);
+    if (appState)
+    {
+      Search_HandleMessage(hWnd, appState, lParam);
+    }
+    return 0;
+  }
+
+  switch (message)
+  {
   case WM_CREATE:
     return App_OnCreate(hWnd);
   case WM_CLOSE:
@@ -20,6 +35,10 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam,
     return App_OnKillFocus(hWnd);
   case WM_TIMER:
     return App_OnTimer(hWnd, wParam);
+
+  case WM_SIZE:
+    Scroll_UpdateScrollbars(hWnd);
+    return 0;
 
   case WM_PAINT:
     return Render_OnPaint(hWnd);
@@ -39,6 +58,16 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam,
     return Mouse_OnLButtonUp(hWnd, wParam, lParam);
   case WM_LBUTTONDBLCLK:
     return Mouse_OnLButtonDblClk(hWnd, wParam, lParam);
+
+  case WM_VSCROLL:
+    Scroll_OnVerticalScroll(hWnd, wParam);
+    InvalidateRect(hWnd, NULL, FALSE);
+    return 0;
+
+  case WM_HSCROLL:
+    Scroll_OnHorizontalScroll(hWnd, wParam);
+    InvalidateRect(hWnd, NULL, FALSE);
+    return 0;
 
   case WM_COMMAND:
     return App_OnCommand(hWnd, wParam, lParam);

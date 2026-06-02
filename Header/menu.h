@@ -8,16 +8,26 @@
 #define ID_FILE_SAVE 1003
 #define ID_FILE_SAVEAS 1004
 #define ID_FILE_EXIT 1005
-#define ID_FILE_RECENT_START 1101 //file history
+#define ID_FILE_RECENT_START 1101 // file history
 #define ID_FILE_RECENT_END 1105
 
 // Edit menu
 #define ID_EDIT_UNDO 2001
-#define ID_EDIT_CUT 2002
-#define ID_EDIT_COPY 2003
-#define ID_EDIT_PASTE 2004
-#define ID_EDIT_DELETE 2005
-#define ID_EDIT_SELECTALL 2006
+#define ID_EDIT_REDO 2002
+#define ID_EDIT_CUT 2003
+#define ID_EDIT_COPY 2004
+#define ID_EDIT_PASTE 2005
+#define ID_EDIT_DELETE 2006
+#define ID_EDIT_SELECTALL 2007
+#define ID_EDIT_FIND 2008
+#define ID_EDIT_REPLACE 2009
+#define ID_EDIT_GOTO 2010
+
+// View menu
+#define ID_VIEW_ZOOM_IN 4001
+#define ID_VIEW_ZOOM_OUT 4002
+#define ID_VIEW_ZOOM_RESET 4003
+#define ID_VIEW_WORDWRAP 4004
 
 // Help menu
 #define ID_HELP_ABOUT 3001

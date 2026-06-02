@@ -30,6 +30,14 @@ BOOL Shortcuts_HandleKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         SendMessage(hWnd, WM_COMMAND, ID_EDIT_SELECTALL, 0);
         return TRUE;
 
+    case 'F':
+        SendMessage(hWnd, WM_COMMAND, ID_EDIT_FIND, 0);
+        return TRUE;
+
+    case 'R':
+        SendMessage(hWnd, WM_COMMAND, ID_EDIT_REPLACE, 0);
+        return TRUE;
+
     case 'X':
         SendMessage(hWnd, WM_COMMAND, ID_EDIT_CUT, 0);
         return TRUE;
@@ -43,11 +51,27 @@ BOOL Shortcuts_HandleKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
         return TRUE;
 
     case 'Z':
-        // SendMessage(hWnd, WM_COMMAND, shiftDown ? ID_EDIT_REDO : ID_EDIT_UNDO, 0);
+        SendMessage(hWnd, WM_COMMAND, shiftDown ? ID_EDIT_REDO : ID_EDIT_UNDO, 0);
         return TRUE;
 
     case 'Y':
-        // SendMessage(hWnd, WM_COMMAND, ID_EDIT_REDO, 0);
+        SendMessage(hWnd, WM_COMMAND, ID_EDIT_REDO, 0);
+        return TRUE;
+
+    case 'G':
+        SendMessage(hWnd, WM_COMMAND, ID_EDIT_GOTO, 0);
+        return TRUE;
+
+    case VK_OEM_PLUS: // Ctrl+Plus (tombol = / + di keyboard utama)
+        SendMessage(hWnd, WM_COMMAND, ID_VIEW_ZOOM_IN, 0);
+        return TRUE;
+
+    case VK_OEM_MINUS: // Ctrl+Minus (tombol - di keyboard utama)
+        SendMessage(hWnd, WM_COMMAND, ID_VIEW_ZOOM_OUT, 0);
+        return TRUE;
+
+    case '0': // Ctrl+0 (Reset zoom)
+        SendMessage(hWnd, WM_COMMAND, ID_VIEW_ZOOM_RESET, 0);
         return TRUE;
 
     default:
