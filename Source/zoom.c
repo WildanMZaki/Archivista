@@ -23,6 +23,16 @@ void Zoom_Apply(HWND hWnd, AppState *s)
 
     // 3. Hitung ulang charWidth dan charHeight berdasarkan font baru
     Render_CalcCharSize(hWnd);
+    if (s->wordWrapEnabled)
+    {
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+        int clientWidth = rc.right - rc.left;
+        int charWidth = s->charWidth > 0 ? s->charWidth : 1;
+        int wrapCols = (clientWidth - TEXT_PADDING_LEFT) / charWidth;
+        s->textBuffer.wrapCols = (wrapCols < 10) ? 10 : wrapCols;
+        Buffer_ReflowAll(&s->textBuffer);
+    }
 
     // 4. Pastikan kursor masih terlihat setelah ukuran berubah
     Scroll_EnsureCursorVisible(hWnd);
