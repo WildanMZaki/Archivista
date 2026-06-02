@@ -2,30 +2,178 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Helper functions for History memory management */
+void HistoryPart_Init(HistoryActionPart *part)
+{
+    if (part)
+    {
+        part->text = NULL;
+        part->row = 0;
+        part->col = 0;
+        part->active = false;
+    }
+}
+
+void HistoryPart_Free(HistoryActionPart *part)
+{
+    if (part && part->text)
+    {
+        free(part->text);
+        part->text = NULL;
+    }
+}
+
+void HistoryPart_SetText(HistoryActionPart *part, const char *newText)
+{
+    if (!part)
+        return;
+
+    HistoryPart_Free(part);
+
+    if (newText)
+    {
+        size_t len = strlen(newText);
+        part->text = (char *)malloc(len + 1);
+        if (part->text)
+        {
+            strcpy_s(part->text, len + 1, newText);
+        }
+    }
+}
+
+void HistoryPart_SetTextNormalized(HistoryActionPart *part, const char *src)
+{
+    if (!part)
+        return;
+
+    HistoryPart_Free(part);
+
+    if (!src)
+        return;
+
+    // Calculate normalized length
+    size_t len = 0;
+    const char *p = src;
+    while (*p != '\0')
+    {
+        if (*p == '\r')
+        {
+            if (*(p + 1) == '\n')
+                p++;
+            len++;
+        }
+        else
+        {
+            len++;
+        }
+        p++;
+    }
+
+    part->text = (char *)malloc(len + 1);
+    if (!part->text)
+        return;
+
+    size_t out = 0;
+    p = src;
+    while (*p != '\0')
+    {
+        if (*p == '\r')
+        {
+            if (*(p + 1) == '\n')
+                p++;
+            part->text[out++] = '\n';
+        }
+        else
+        {
+            part->text[out++] = *p;
+        }
+        p++;
+    }
+    part->text[out] = '\0';
+}
+
+void HistoryPart_Copy(HistoryActionPart *dest, const HistoryActionPart *src)
+{
+    if (!dest || !src)
+        return;
+
+    dest->active = src->active;
+    dest->row = src->row;
+    dest->col = src->col;
+    dest->text = NULL;
+
+    if (src->text)
+    {
+        size_t len = strlen(src->text);
+        dest->text = (char *)malloc(len + 1);
+        if (dest->text)
+        {
+            strcpy_s(dest->text, len + 1, src->text);
+        }
+    }
+}
+
+void HistoryAction_Init(HistoryAction *action)
+{
+    if (action)
+    {
+        HistoryPart_Init(&action->add);
+        HistoryPart_Init(&action->delete);
+    }
+}
+
+void HistoryAction_Free(HistoryAction *action)
+{
+    if (action)
+    {
+        HistoryPart_Free(&action->add);
+        HistoryPart_Free(&action->delete);
+    }
+}
+
+void HistoryAction_Copy(HistoryAction *dest, const HistoryAction *src)
+{
+    if (dest && src)
+    {
+        HistoryPart_Copy(&dest->add, &src->add);
+        HistoryPart_Copy(&dest->delete, &src->delete);
+    }
+}
+
+static void History_FreeStack(Stack *S)
+{
+    address P;
+    while (!isStackEmpty(*S))
+    {
+        DelLast(S, &P);
+        if (P != NULL)
+        {
+            if (P->data != NULL)
+            {
+                HistoryAction *action = (HistoryAction *)P->data;
+                HistoryAction_Free(action);
+            }
+            DeAlokasi(P);
+        }
+    }
+}
+
 /* Create insert action */
 HistoryAction History_CreateInsertAction(const char *text, int row, int col)
 {
     HistoryAction action;
+    HistoryAction_Init(&action);
 
     /* Initialize add part */
     action.add.row = row;
     action.add.col = col;
     action.add.active = true;
-
-    if (text && strlen(text) < HISTORY_ACTION_BUFFER_SIZE)
-    {
-        strcpy_s(action.add.text, HISTORY_ACTION_BUFFER_SIZE, text);
-    }
-    else
-    {
-        action.add.text[0] = '\0';
-    }
+    HistoryPart_SetTextNormalized(&action.add, text);
 
     /* Initialize delete part - not active for this action type */
     action.delete.row = row;
     action.delete.col = col;
     action.delete.active = false;
-    action.delete.text[0] = '\0';
 
     return action;
 }
@@ -34,26 +182,18 @@ HistoryAction History_CreateInsertAction(const char *text, int row, int col)
 HistoryAction History_CreateDeleteAction(const char *text, int row, int col)
 {
     HistoryAction action;
+    HistoryAction_Init(&action);
 
     /* Initialize delete part */
     action.delete.row = row;
     action.delete.col = col;
     action.delete.active = true;
-
-    if (text && strlen(text) < HISTORY_ACTION_BUFFER_SIZE)
-    {
-        strcpy_s(action.delete.text, HISTORY_ACTION_BUFFER_SIZE, text);
-    }
-    else
-    {
-        action.delete.text[0] = '\0';
-    }
+    HistoryPart_SetTextNormalized(&action.delete, text);
 
     /* Initialize add part - not active for this action type */
     action.add.row = row;
     action.add.col = col;
     action.add.active = false;
-    action.add.text[0] = '\0';
 
     return action;
 }
@@ -74,8 +214,8 @@ void History_Free(EditHistory *history)
     if (!history)
         return;
 
-    DeleteAll(&history->undoStack);
-    DeleteAll(&history->redoStack);
+    History_FreeStack(&history->undoStack);
+    History_FreeStack(&history->redoStack);
 }
 
 /* Clear history */
@@ -110,16 +250,19 @@ void History_PushAction(EditHistory *history, HistoryAction action)
         return;
 
     /* Check if there's anything meaningful to push */
-    bool hasAdd = action.add.active && action.add.text[0] != '\0';
-    bool hasDelete = action.delete.active && action.delete.text[0] != '\0';
+    bool hasAdd = action.add.active && action.add.text && action.add.text[0] != '\0';
+    bool hasDelete = action.delete.active && action.delete.text && action.delete.text[0] != '\0';
 
     if (!hasAdd && !hasDelete)
+    {
+        HistoryAction_Free(&action);
         return;
+    }
 
     Push(&history->undoStack, &action, sizeof(HistoryAction));
 
     /* Clear redo stack saat ada action baru */
-    DeleteAll(&history->redoStack);
+    History_FreeStack(&history->redoStack);
 }
 
 /* Perform undo */
@@ -147,15 +290,20 @@ bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
     }
 
     currentAction = (HistoryAction *)popData;
-    *outAction = *currentAction;
+    
+    /* Deep copy to outAction so the caller gets a copy of strings they own and must free */
+    HistoryAction_Copy(outAction, currentAction);
 
-    /* Create reverse action untuk redo - swap add/delete */
-    reverseAction.add = currentAction->delete;
-    reverseAction.delete = currentAction->add;
+    /* Create reverse action untuk redo - swap add/delete. Deep copy components! */
+    HistoryAction_Init(&reverseAction);
+    HistoryPart_Copy(&reverseAction.add, &currentAction->delete);
+    HistoryPart_Copy(&reverseAction.delete, &currentAction->add);
 
     /* Push reverse action ke redo stack */
     Push(&history->redoStack, &reverseAction, sizeof(HistoryAction));
 
+    /* Clean up the popped action */
+    HistoryAction_Free(currentAction);
     free(popData);
     return true;
 }
@@ -185,15 +333,20 @@ bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
     }
 
     redoAction = (HistoryAction *)popData;
-    *outAction = *redoAction;
+    
+    /* Deep copy to outAction so the caller gets a copy of strings they own and must free */
+    HistoryAction_Copy(outAction, redoAction);
 
-    /* Create reverse action untuk undo - swap add/delete */
-    reverseAction.add = redoAction->delete;
-    reverseAction.delete = redoAction->add;
+    /* Create reverse action untuk undo - swap add/delete. Deep copy components! */
+    HistoryAction_Init(&reverseAction);
+    HistoryPart_Copy(&reverseAction.add, &redoAction->delete);
+    HistoryPart_Copy(&reverseAction.delete, &redoAction->add);
 
     /* Push reverse action ke undo stack */
     Push(&history->undoStack, &reverseAction, sizeof(HistoryAction));
 
+    /* Clean up the popped action */
+    HistoryAction_Free(redoAction);
     free(popData);
     return true;
 }

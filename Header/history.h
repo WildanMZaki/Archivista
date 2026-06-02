@@ -5,11 +5,9 @@
 #include "buffer.h"
 #include "../Source/stack/stack.h"
 
-#define HISTORY_ACTION_BUFFER_SIZE 256
-
 typedef struct
 {
-    char text[HISTORY_ACTION_BUFFER_SIZE];
+    char *text;
     int row;
     int col;
     bool active;
@@ -26,6 +24,17 @@ typedef struct
     Stack undoStack;
     Stack redoStack;
 } EditHistory;
+
+/* Helper functions for History memory management */
+void HistoryPart_Init(HistoryActionPart *part);
+void HistoryPart_Free(HistoryActionPart *part);
+void HistoryPart_SetText(HistoryActionPart *part, const char *newText);
+void HistoryPart_SetTextNormalized(HistoryActionPart *part, const char *src);
+void HistoryPart_Copy(HistoryActionPart *dest, const HistoryActionPart *src);
+
+void HistoryAction_Init(HistoryAction *action);
+void HistoryAction_Free(HistoryAction *action);
+void HistoryAction_Copy(HistoryAction *dest, const HistoryAction *src);
 
 /* Create insert action */
 HistoryAction History_CreateInsertAction(const char *text, int row, int col);

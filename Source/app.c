@@ -14,38 +14,6 @@
 #include "../Header/config.h"
 #include "../Header/utils.h"
 
-static void App_CopyHistoryText(char *dst, size_t dstSize, const char *src)
-{
-  size_t out = 0;
-
-  if (!dst || dstSize == 0)
-    return;
-
-  if (!src)
-  {
-    dst[0] = '\0';
-    return;
-  }
-
-  while (*src != '\0' && out + 1 < dstSize)
-  {
-    if (*src == '\r')
-    {
-      if (*(src + 1) == '\n')
-        src++;
-
-      dst[out++] = '\n';
-    }
-    else
-    {
-      dst[out++] = *src;
-    }
-
-    src++;
-  }
-
-  dst[out] = '\0';
-}
 
 void App_AttachState(HWND hWnd, AppState *state)
 {
@@ -197,10 +165,11 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     if (History_CanUndo(&s->history))
     {
       HistoryAction undoAction;
+      HistoryAction_Init(&undoAction);
       if (History_Undo(&s->history, &s->textBuffer, &undoAction))
       {
         /* Reverse add: DELETE what was added */
-        if (undoAction.add.active && undoAction.add.text[0] != '\0')
+        if (undoAction.add.active && undoAction.add.text && undoAction.add.text[0] != '\0')
         {
           Cursor_SetPosition(&s->textBuffer, undoAction.add.row, undoAction.add.col);
           for (int i = 0; i < (int)strlen(undoAction.add.text); i++)
@@ -208,7 +177,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
         }
 
         /* Reverse delete: INSERT what was deleted */
-        if (undoAction.delete.active && undoAction.delete.text[0] != '\0')
+        if (undoAction.delete.active && undoAction.delete.text && undoAction.delete.text[0] != '\0')
         {
           Cursor_SetPosition(&s->textBuffer, undoAction.delete.row, undoAction.delete.col);
           for (int i = 0; undoAction.delete.text[i]; i++)
@@ -223,6 +192,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
         s->selection.active = 0;
         App_SyncEditedState(s);
         App_RefreshEditorAfterAction(hWnd, s);
+        HistoryAction_Free(&undoAction);
       }
     }
     return 0;
@@ -231,11 +201,12 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     if (History_CanRedo(&s->history))
     {
       HistoryAction redoAction;
+      HistoryAction_Init(&redoAction);
       if (History_Redo(&s->history, &s->textBuffer, &redoAction))
       {
         /* Redo uses same logic as undo: DELETE add, INSERT delete */
         /* Reverse add: DELETE what was added */
-        if (redoAction.add.active && redoAction.add.text[0] != '\0')
+        if (redoAction.add.active && redoAction.add.text && redoAction.add.text[0] != '\0')
         {
           Cursor_SetPosition(&s->textBuffer, redoAction.add.row, redoAction.add.col);
           for (int i = 0; i < (int)strlen(redoAction.add.text); i++)
@@ -243,7 +214,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
         }
 
         /* Reverse delete: INSERT what was deleted */
-        if (redoAction.delete.active && redoAction.delete.text[0] != '\0')
+        if (redoAction.delete.active && redoAction.delete.text && redoAction.delete.text[0] != '\0')
         {
           Cursor_SetPosition(&s->textBuffer, redoAction.delete.row, redoAction.delete.col);
           for (int i = 0; redoAction.delete.text[i]; i++)
@@ -258,6 +229,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
         s->selection.active = 0;
         App_SyncEditedState(s);
         App_RefreshEditorAfterAction(hWnd, s);
+        HistoryAction_Free(&redoAction);
       }
     }
     return 0;
@@ -272,10 +244,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
       Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &startPos, &endPos);
 
-      char historyText[HISTORY_ACTION_BUFFER_SIZE];
-      App_CopyHistoryText(historyText, sizeof(historyText), sel);
-
-      HistoryAction del = History_CreateDeleteAction(historyText, startPos.row, startPos.col);
+      HistoryAction del = History_CreateDeleteAction(sel, startPos.row, startPos.col);
       History_PushAction(&s->history, del);
       Clipboard_Copy(hWnd, sel);
       free(sel);
@@ -318,15 +287,14 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     // Push to undo history - create SINGLE action with both delete and add
     HistoryAction action;
-    action.add.active = false;
-    action.add.text[0] = '\0';
+    HistoryAction_Init(&action);
     action.add.row = pastePos.row;
     action.add.col = pastePos.col;
+    action.add.active = false;
 
-    action.delete.active = false;
-    action.delete.text[0] = '\0';
     action.delete.row = pastePos.row;
     action.delete.col = pastePos.col;
+    action.delete.active = false;
 
     // Record removed text (dari selection yg ditimpa) sebagai delete part
     if (insertResult.removed && insertResult.removedLen > 0)
@@ -334,31 +302,14 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       action.delete.active = true;
       action.delete.row = pastePos.row;
       action.delete.col = pastePos.col;
-
-      int copyLen = insertResult.removedLen;
-      if (copyLen > HISTORY_ACTION_BUFFER_SIZE - 1)
-        copyLen = HISTORY_ACTION_BUFFER_SIZE - 1;
-
-      if (copyLen > 0)
-      {
-        App_CopyHistoryText(action.delete.text, sizeof(action.delete.text), insertResult.removed);
-        action.delete.text[copyLen] = '\0';
-      }
+      HistoryPart_SetTextNormalized(&action.delete, insertResult.removed);
     }
 
     // Record inserted text sebagai add part
     if (insertResult.insertedLen > 0)
     {
       action.add.active = true;
-      int copyLen = insertResult.insertedLen;
-      if (copyLen > HISTORY_ACTION_BUFFER_SIZE - 1)
-        copyLen = HISTORY_ACTION_BUFFER_SIZE - 1;
-
-      if (copyLen > 0)
-      {
-        memcpy(action.add.text, insertResult.inserted, (size_t)copyLen);
-        action.add.text[copyLen] = '\0';
-      }
+      HistoryPart_SetText(&action.add, insertResult.inserted);
     }
 
     // Push SINGLE action dengan both delete dan add
