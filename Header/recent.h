@@ -4,7 +4,6 @@
 #include "app.h"
 
 #define MAX_RECENT_FILES 5
-#define RECENT_INI_NAME "recent.ini"
 #define ID_FILE_RECENT_SEPARATOR 1100
 
 typedef struct tRecentFile {

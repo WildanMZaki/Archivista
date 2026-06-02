@@ -1,5 +1,6 @@
 #include "../Header/recent.h"
 #include "../Header/menu.h"
+#include "../Header/config.h"
 #include "stdio.h"
 
 static RecentFiles recents;
@@ -112,21 +113,7 @@ void Recent_FreeAllNode() {
   recents.First = NULL;
 }
 
-// Fungsi bantuan untuk mendapatkan Full Path lokasi recent.ini
-static void GetIniPath(char *outPath) {
-  GetModuleFileName(NULL, outPath, MAX_PATH);
-  char *lastSlash = strrchr(outPath, '\\');
-  if (lastSlash) {
-    strcpy(lastSlash + 1, RECENT_INI_NAME);
-  } else {
-    strcpy(outPath, RECENT_INI_NAME);
-  }
-}
-
 void Recent_LoadRecent() {
-  char iniPath[MAX_PATH];
-  GetIniPath(iniPath);
-
   NRLL_Initialize(&recents);
   for (int i = 0; i < MAX_RECENT_FILES; i++) {
     char keyName[16];
@@ -134,8 +121,7 @@ void Recent_LoadRecent() {
 
     // Membaca nilai dari recent.ini menggunakan API Bawaan Windows
     char buffer[MAX_PATH];
-    GetPrivateProfileString("RecentFiles", keyName, "", buffer, MAX_PATH,
-                            iniPath);
+    Config_ReadString("RecentFiles", keyName, "", buffer, MAX_PATH);
 
     if (strlen(buffer) > 0) {
       NRLL_InsertLast(&recents, buffer);
@@ -156,15 +142,13 @@ void Recent_AddRecent(const char *filepath) {
   // Taruh posisi index ke-0
   NRLL_InsertFirst(&recents, filepath);
 
-  // Simpan (Save) data terbaru ke recent.ini
-  char iniPath[MAX_PATH];
-  GetIniPath(iniPath);
+  // Simpan (Save) data terbaru ke config.ini
   node = recents.First;
   int i = 1;
   while (node != NULL && i <= MAX_RECENT_FILES) {
     char keyName[6];
     sprintf(keyName, "File%d", i);
-    WritePrivateProfileString("RecentFiles", keyName, node->pathFiles, iniPath);
+    Config_WriteString("RecentFiles", keyName, node->pathFiles);
     node = node->next;
     i++;
   };
