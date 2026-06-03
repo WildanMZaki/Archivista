@@ -30,8 +30,11 @@ jobs:
           echo "📌 Tag: $TAG | Version: $VERSION"
 
       # ── Setup build tools ─────────────────────────────────────
-      - name: Install Ninja
-        run: choco install ninja -y
+      - name: Install CMake 4.x and Ninja
+        run: |
+          pip install cmake --upgrade
+          choco install ninja -y
+          cmake --version
 
       # ── Build Release (.exe) ──────────────────────────────────
       - name: Configure CMake

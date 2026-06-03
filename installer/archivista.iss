@@ -20,8 +20,7 @@ DefaultGroupName=Archivista
 AllowNoIcons=yes
 OutputDir=Output
 OutputBaseFilename=Archivista-{#AppVersion}-Setup
-; Uncomment the line below after adding your icon file at assets/archivista.ico
-; SetupIconFile=..\assets\archivista.ico
+SetupIconFile=..\assets\archivista.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
