@@ -35,10 +35,11 @@ jobs:
           pip install cmake --upgrade
           choco install ninja -y
           cmake --version
+          gcc --version
 
       # ── Build Release (.exe) ──────────────────────────────────
       - name: Configure CMake
-        run: cmake -S . -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build/release -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc
 
       - name: Build Archivista
         run: cmake --build build/release -j
