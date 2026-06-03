@@ -68,8 +68,37 @@ jobs:
           }
           Write-Host "✅ Installer built successfully: $installerPath"
 
+      # ── Detect changelog ──────────────────────────────────────
+      - name: Check for changelog file
+        id: changelog
+        shell: bash
+        run: |
+          CHANGELOG_FILE="changelogs/${{ steps.version.outputs.tag }}.md"
+          if [ -f "$CHANGELOG_FILE" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "path=$CHANGELOG_FILE" >> "$GITHUB_OUTPUT"
+            echo "📝 Custom changelog found: $CHANGELOG_FILE"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "📝 No changelog file, will auto-generate release notes"
+          fi
+
       # ── Create GitHub Release ─────────────────────────────────
-      - name: Create GitHub Release
+      - name: Create Release (custom changelog)
+        if: steps.changelog.outputs.found == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body_path: ${{ steps.changelog.outputs.path }}
+          draft: false
+          prerelease: false
+          files: |
+            build/release/Archivista.exe
+            installer/Output/Archivista-${{ steps.version.outputs.version }}-Setup.exe
+
+      - name: Create Release (auto-generated notes)
+        if: steps.changelog.outputs.found == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
