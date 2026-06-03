@@ -168,24 +168,26 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       HistoryAction_Init(&undoAction);
       if (History_Undo(&s->history, &s->textBuffer, &undoAction))
       {
-        /* Reverse add: DELETE what was added */
-        if (undoAction.add.active && undoAction.add.text && undoAction.add.text[0] != '\0')
+        /* Reverse edits in reverse order */
+        for (int i = undoAction.editCount - 1; i >= 0; i--)
         {
-          Cursor_SetPosition(&s->textBuffer, undoAction.add.row, undoAction.add.col);
-          for (int i = 0; i < (int)strlen(undoAction.add.text); i++)
-            Buffer_Delete(&s->textBuffer);
-        }
-
-        /* Reverse delete: INSERT what was deleted */
-        if (undoAction.delete.active && undoAction.delete.text && undoAction.delete.text[0] != '\0')
-        {
-          Cursor_SetPosition(&s->textBuffer, undoAction.delete.row, undoAction.delete.col);
-          for (int i = 0; undoAction.delete.text[i]; i++)
+          HistoryEdit *edit = &undoAction.edits[i];
+          if (edit->type == HISTORY_EDIT_INSERT)
           {
-            if (undoAction.delete.text[i] == '\n')
-              Buffer_InsertNewline(&s->textBuffer);
-            else
-              Buffer_InsertChar(&s->textBuffer, undoAction.delete.text[i]);
+            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
+            for (int j = 0; j < (int)strlen(edit->text); j++)
+              Buffer_Delete(&s->textBuffer);
+          }
+          else if (edit->type == HISTORY_EDIT_DELETE)
+          {
+            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
+            for (int j = 0; edit->text[j]; j++)
+            {
+              if (edit->text[j] == '\n')
+                Buffer_InsertNewline(&s->textBuffer);
+              else
+                Buffer_InsertChar(&s->textBuffer, edit->text[j]);
+            }
           }
         }
 
@@ -204,25 +206,26 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       HistoryAction_Init(&redoAction);
       if (History_Redo(&s->history, &s->textBuffer, &redoAction))
       {
-        /* Redo uses same logic as undo: DELETE add, INSERT delete */
-        /* Reverse add: DELETE what was added */
-        if (redoAction.add.active && redoAction.add.text && redoAction.add.text[0] != '\0')
+        /* Apply edits in forward order */
+        for (int i = 0; i < redoAction.editCount; i++)
         {
-          Cursor_SetPosition(&s->textBuffer, redoAction.add.row, redoAction.add.col);
-          for (int i = 0; i < (int)strlen(redoAction.add.text); i++)
-            Buffer_Delete(&s->textBuffer);
-        }
-
-        /* Reverse delete: INSERT what was deleted */
-        if (redoAction.delete.active && redoAction.delete.text && redoAction.delete.text[0] != '\0')
-        {
-          Cursor_SetPosition(&s->textBuffer, redoAction.delete.row, redoAction.delete.col);
-          for (int i = 0; redoAction.delete.text[i]; i++)
+          HistoryEdit *edit = &redoAction.edits[i];
+          if (edit->type == HISTORY_EDIT_INSERT)
           {
-            if (redoAction.delete.text[i] == '\n')
-              Buffer_InsertNewline(&s->textBuffer);
-            else
-              Buffer_InsertChar(&s->textBuffer, redoAction.delete.text[i]);
+            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
+            for (int j = 0; edit->text[j]; j++)
+            {
+              if (edit->text[j] == '\n')
+                Buffer_InsertNewline(&s->textBuffer);
+              else
+                Buffer_InsertChar(&s->textBuffer, edit->text[j]);
+            }
+          }
+          else if (edit->type == HISTORY_EDIT_DELETE)
+          {
+            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
+            for (int j = 0; j < (int)strlen(edit->text); j++)
+              Buffer_Delete(&s->textBuffer);
           }
         }
 
@@ -288,28 +291,17 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
     // Push to undo history - create SINGLE action with both delete and add
     HistoryAction action;
     HistoryAction_Init(&action);
-    action.add.row = pastePos.row;
-    action.add.col = pastePos.col;
-    action.add.active = false;
-
-    action.delete.row = pastePos.row;
-    action.delete.col = pastePos.col;
-    action.delete.active = false;
 
     // Record removed text (dari selection yg ditimpa) sebagai delete part
     if (insertResult.removed && insertResult.removedLen > 0)
     {
-      action.delete.active = true;
-      action.delete.row = pastePos.row;
-      action.delete.col = pastePos.col;
-      HistoryPart_SetTextNormalized(&action.delete, insertResult.removed);
+      HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, insertResult.removed, pastePos.row, pastePos.col, true);
     }
 
     // Record inserted text sebagai add part
     if (insertResult.insertedLen > 0)
     {
-      action.add.active = true;
-      HistoryPart_SetText(&action.add, insertResult.inserted);
+      HistoryAction_AddEdit(&action, HISTORY_EDIT_INSERT, insertResult.inserted, pastePos.row, pastePos.col, false);
     }
 
     // Push SINGLE action dengan both delete dan add

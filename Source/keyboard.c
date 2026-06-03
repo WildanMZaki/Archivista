@@ -36,15 +36,6 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
     HistoryAction_Init(&action);
     TextPos insertStart = Keyboard_GetInsertStart(&s->textBuffer, &s->selection);
 
-    /* Initialize action properties */
-    action.add.row = insertStart.row;
-    action.add.col = insertStart.col;
-    action.add.active = false;
-
-    action.delete.row = insertStart.row;
-    action.delete.col = insertStart.col;
-    action.delete.active = false;
-
     if (c == '\r')
     {
         /* If selection exists, record it as a delete action first */
@@ -55,18 +46,14 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
             TextPos selectionEnd;
 
             Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            action.delete.active = true;
-            HistoryPart_SetTextNormalized(&action.delete, sel);
-            action.delete.row = selectionStart.row;
-            action.delete.col = selectionStart.col;
+            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
             free(sel);
             Buffer_DeleteSelection(&s->textBuffer, &s->selection);
             Keyboard_ClearSelection(s);
         }
 
         Buffer_InsertNewline(&s->textBuffer);
-        action.add.active = true;
-        HistoryPart_SetText(&action.add, "\n");
+        HistoryAction_AddEdit(&action, HISTORY_EDIT_INSERT, "\n", insertStart.row, insertStart.col, false);
     }
     else if (c == '\b')
     {
@@ -74,14 +61,11 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
         char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
         if (sel)
         {
-            action.delete.active = true;
             TextPos selectionStart;
             TextPos selectionEnd;
 
             Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryPart_SetTextNormalized(&action.delete, sel);
-            action.delete.row = selectionStart.row;
-            action.delete.col = selectionStart.col;
+            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
             free(sel);
             Buffer_DeleteSelection(&s->textBuffer, &s->selection);
             Keyboard_ClearSelection(s);
@@ -92,25 +76,16 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
             int row = s->textBuffer.cursorRow;
             int col = s->textBuffer.cursorCol;
 
-            action.delete.active = true;
             if (col > 0)
             {
                 /* Delete character before cursor */
                 char temp[2] = { Buffer_GetLineText(&s->textBuffer, row)[col - 1], '\0' };
-                HistoryPart_SetText(&action.delete, temp);
-                action.delete.row = row;
-                action.delete.col = col - 1;
+                HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, temp, row, col - 1, false);
             }
             else if (row > 0)
             {
                 /* Delete newline from previous line */
-                HistoryPart_SetText(&action.delete, "\n");
-                action.delete.row = row - 1;
-                action.delete.col = Buffer_GetLineLen(&s->textBuffer, row - 1);
-            }
-            else
-            {
-                action.delete.active = false;
+                HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, "\n", row - 1, Buffer_GetLineLen(&s->textBuffer, row - 1), false);
             }
 
             Buffer_Backspace(&s->textBuffer);
@@ -121,14 +96,11 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
         char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
         if (sel)
         {
-            action.delete.active = true;
             TextPos selectionStart;
             TextPos selectionEnd;
 
             Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryPart_SetTextNormalized(&action.delete, sel);
-            action.delete.row = selectionStart.row;
-            action.delete.col = selectionStart.col;
+            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
             free(sel);
             Buffer_DeleteSelection(&s->textBuffer, &s->selection);
             Keyboard_ClearSelection(s);
@@ -136,53 +108,44 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
         for (int i = 0; i < 4; i++)
             Buffer_InsertChar(&s->textBuffer, ' ');
-        action.add.active = true;
-        HistoryPart_SetText(&action.add, "    ");
+        HistoryAction_AddEdit(&action, HISTORY_EDIT_INSERT, "    ", insertStart.row, insertStart.col, false);
     }
     else if (c == ' ')
     {
         char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
         if (sel)
         {
-            action.delete.active = true;
             TextPos selectionStart;
             TextPos selectionEnd;
 
             Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryPart_SetTextNormalized(&action.delete, sel);
-            action.delete.row = selectionStart.row;
-            action.delete.col = selectionStart.col;
+            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
             free(sel);
             Buffer_DeleteSelection(&s->textBuffer, &s->selection);
             Keyboard_ClearSelection(s);
         }
 
         Buffer_InsertChar(&s->textBuffer, c);
-        action.add.active = true;
-        HistoryPart_SetText(&action.add, " ");
+        HistoryAction_AddEdit(&action, HISTORY_EDIT_INSERT, " ", insertStart.row, insertStart.col, false);
     }
     else if (c >= 32)
     {
         char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
         if (sel)
         {
-            action.delete.active = true;
             TextPos selectionStart;
             TextPos selectionEnd;
 
             Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryPart_SetTextNormalized(&action.delete, sel);
-            action.delete.row = selectionStart.row;
-            action.delete.col = selectionStart.col;
+            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
             free(sel);
             Buffer_DeleteSelection(&s->textBuffer, &s->selection);
             Keyboard_ClearSelection(s);
         }
 
         Buffer_InsertChar(&s->textBuffer, c);
-        action.add.active = true;
         char temp[2] = { c, '\0' };
-        HistoryPart_SetText(&action.add, temp);
+        HistoryAction_AddEdit(&action, HISTORY_EDIT_INSERT, temp, insertStart.row, insertStart.col, false);
     }
 
     /* Push the resulting action */
@@ -302,8 +265,6 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
             Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
             HistoryAction del = History_CreateDeleteAction(sel, selectionStart.row, selectionStart.col);
-            del.delete.row = selectionStart.row;
-            del.delete.col = selectionStart.col;
             History_PushAction(&s->history, del);
             free(sel);
             Buffer_DeleteSelection(&s->textBuffer, &s->selection);

@@ -5,18 +5,24 @@
 #include "buffer.h"
 #include "../Source/stack/stack.h"
 
-typedef struct
+typedef enum
 {
-    char *text;
-    int row;
-    int col;
-    bool active;
-} HistoryActionPart;
+    HISTORY_EDIT_INSERT,
+    HISTORY_EDIT_DELETE
+} HistoryEditType;
 
 typedef struct
 {
-    HistoryActionPart add;    /* Teks yang ditambahkan */
-    HistoryActionPart delete; /* Teks yang dihapus */
+    HistoryEditType type;
+    char *text;
+    int row;
+    int col;
+} HistoryEdit;
+
+typedef struct
+{
+    HistoryEdit *edits;
+    int editCount;
 } HistoryAction;
 
 typedef struct
@@ -26,14 +32,9 @@ typedef struct
 } EditHistory;
 
 /* Helper functions for History memory management */
-void HistoryPart_Init(HistoryActionPart *part);
-void HistoryPart_Free(HistoryActionPart *part);
-void HistoryPart_SetText(HistoryActionPart *part, const char *newText);
-void HistoryPart_SetTextNormalized(HistoryActionPart *part, const char *src);
-void HistoryPart_Copy(HistoryActionPart *dest, const HistoryActionPart *src);
-
 void HistoryAction_Init(HistoryAction *action);
 void HistoryAction_Free(HistoryAction *action);
+void HistoryAction_AddEdit(HistoryAction *action, HistoryEditType type, const char *text, int row, int col, bool normalize);
 void HistoryAction_Copy(HistoryAction *dest, const HistoryAction *src);
 
 /* Create insert action */
