@@ -106,6 +106,6 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+          # build/release/Archivista.exe -- include it below if want to include the executable app file
           files: |
-            build/release/Archivista.exe
             installer/Output/Archivista-${{ steps.version.outputs.version }}-Setup.exe
