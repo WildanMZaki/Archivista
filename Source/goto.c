@@ -12,8 +12,9 @@ LRESULT CALLBACK GotoEditSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 return 0;
             }
         }
+        return CallWindowProc(ctx->fnOldEditProc, hWnd, message, wParam, lParam);
     }
-    return CallWindowProc(ctx->fnOldEditProc, hWnd, message, wParam, lParam);
+    return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
 // Window procedure for the Go To Line dialog
