@@ -55,7 +55,7 @@ add_executable(Archivista WIN32
         Header/zoom.h
         Header/utils.h
         Header/config.h
+        Header/resource.h
 
         ${CMAKE_BINARY_DIR}/app.rc
-        Header/resource.h
 )
