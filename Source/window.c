@@ -1,4 +1,5 @@
 #include "../Header/window.h"
+#include "../Header/resource.h"
 
 BOOL InitApplication(HINSTANCE hInstance, WNDPROC winProc)
 {
@@ -10,17 +11,12 @@ BOOL InitApplication(HINSTANCE hInstance, WNDPROC winProc)
     wcx.cbClsExtra = 0;
     wcx.cbWndExtra = 0;
     wcx.hInstance = hInstance;
-    wcx.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    wcx.hIcon = LoadIcon(hInstance, MAKEINTRESOURCEA(IDI_ICON1));
     wcx.hCursor = LoadCursor(NULL, IDC_IBEAM);
     wcx.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
     wcx.lpszMenuName = NULL;
     wcx.lpszClassName = APP_TITLE;
-    wcx.hIconSm = LoadImage(hInstance,
-                            MAKEINTRESOURCE(5),
-                            IMAGE_ICON,
-                            GetSystemMetrics(SM_CXSMICON),
-                            GetSystemMetrics(SM_CYSMICON),
-                            LR_DEFAULTCOLOR);
+    wcx.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCEA(IDI_ICON1));
 
     return RegisterClassEx(&wcx);
 }

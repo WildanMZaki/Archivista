@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 4.1)
-project(Archivista C)
+project(Archivista VERSION 1.1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
+
+configure_file(
+        ${CMAKE_SOURCE_DIR}/app.rc.in
+        ${CMAKE_BINARY_DIR}/app.rc
+        @ONLY
+)
 
 add_executable(Archivista WIN32
         Source/app.c
@@ -49,4 +55,7 @@ add_executable(Archivista WIN32
         Header/zoom.h
         Header/utils.h
         Header/config.h
+        Header/resource.h
+
+        ${CMAKE_BINARY_DIR}/app.rc
 )
