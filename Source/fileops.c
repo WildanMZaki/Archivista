@@ -40,8 +40,8 @@ void FileOps_New(HWND hWnd, AppState *s) {
   Buffer_SetInitBuffer(&s->textBuffer);
   s->currentFilePath[0] = '\0'; // Reset Current File Path
   Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
-  App_RefreshEditorAfterAction(hWnd, s);
   App_SyncEditedState(s);
+  App_RefreshEditorAfterAction(hWnd, s);
 }
 
 static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
@@ -79,8 +79,8 @@ static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
   free(buffer);
 
   Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
-  App_RefreshEditorAfterAction(hWnd, s);
   App_SyncEditedState(s);
+  App_RefreshEditorAfterAction(hWnd, s);
   return TRUE;
 }
 
