@@ -17,7 +17,6 @@ int WINAPI WinMain(HINSTANCE hInstance,
     if (!InitInstance(hInstance, nCmdShow))
         return FALSE;
 
-    SetProcessDPIAware();
     BOOL fGotMessage;
     while ((fGotMessage = GetMessage(&msg, (HWND)NULL, 0, 0)) != 0 && fGotMessage != -1)
     {
