@@ -83,15 +83,10 @@ void App_UpdateTitle(HWND hWnd, AppState *s) {
   {
     // Extract only the file name from the full path (Windows backslash or standard slash)
     const char *lastBackslash = strrchr(s->currentFilePath, '\\');
-    const char *lastSlash = strrchr(s->currentFilePath, '/');
     const char *tempName = s->currentFilePath;
     if (lastBackslash != NULL && lastBackslash > tempName)
     {
       tempName = lastBackslash + 1;
-    }
-    if (lastSlash != NULL && lastSlash > tempName)
-    {
-      tempName = lastSlash + 1;
     }
     if (tempName[0] != '\0')
     {
