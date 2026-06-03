@@ -34,6 +34,24 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "contextmenu"; Description: "Add ""Open with Archivista"" to right-click context menu for .txt files"; GroupDescription: "Context Menu:"; Flags: unchecked
+Name: "openwith"; Description: "Register Archivista in ""Open With"" program list"; GroupDescription: "Context Menu:"; Flags: unchecked
+
+[Registry]
+; Direct context menu for .txt files (right-click → "Open with Archivista")
+Root: HKCU; Subkey: "Software\Classes\.txt\shell\Archivista"; ValueType: string; ValueName: ""; ValueData: "Open with Archivista"; Tasks: contextmenu; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\.txt\shell\Archivista"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\Archivista.exe"",0"; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\.txt\shell\Archivista\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Archivista.exe"" ""%1"""; Tasks: contextmenu; Flags: uninsdeletekey
+
+; Register in Windows "Open With" program list (right-click → Open with → Choose another app)
+Root: HKCU; Subkey: "Software\Classes\Applications\Archivista.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Archivista"; Tasks: openwith; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\Archivista.exe\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Archivista.exe"" ""%1"""; Tasks: openwith; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\Archivista.exe\SupportedTypes"; ValueType: string; ValueName: ".txt"; ValueData: ""; Tasks: openwith; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\Archivista.exe\SupportedTypes"; ValueType: string; ValueName: ".log"; ValueData: ""; Tasks: openwith; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\Archivista.exe\SupportedTypes"; ValueType: string; ValueName: ".md"; ValueData: ""; Tasks: openwith; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\Archivista.exe\SupportedTypes"; ValueType: string; ValueName: ".ini"; ValueData: ""; Tasks: openwith; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\Archivista.exe\SupportedTypes"; ValueType: string; ValueName: ".cfg"; ValueData: ""; Tasks: openwith; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\Archivista.exe\SupportedTypes"; ValueType: string; ValueName: ".csv"; ValueData: ""; Tasks: openwith; Flags: uninsdeletekey
 
 [Files]
 ; Main executable - built by CMake in the workflow

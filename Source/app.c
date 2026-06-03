@@ -124,6 +124,13 @@ LRESULT App_OnCreate(HWND hWnd)
 
   App_UpdateTitle(hWnd, s);
 
+  // Open file from command line argument (e.g. "Open with Archivista" context menu)
+  extern char g_cmdLineFilePath[MAX_PATH];
+  if (g_cmdLineFilePath[0] != '\0')
+  {
+    FileOps_Open(hWnd, s, g_cmdLineFilePath);
+  }
+
   // Blink timer mulai ketika focus (behaviour sama seperti sebelumnya:
   // WM_SETFOCUS start)
   return 0;
