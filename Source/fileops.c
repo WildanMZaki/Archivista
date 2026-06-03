@@ -25,7 +25,6 @@ BOOL ConfirmSave(HWND hWnd, AppState *s) {
     switch (msgboxID) {
       case IDYES:
         return FileOps_Save(hWnd, s);
-        break;
       case IDCANCEL:
         return FALSE;
     }
@@ -78,6 +77,10 @@ static BOOL FileOps_OpenFile(HWND hWnd, AppState *s, char *path) {
   Buffer_SetInitBuffer(&s->textBuffer);
   strcpy(s->currentFilePath, path);
   free(buffer);
+
+  Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
+  App_RefreshEditorAfterAction(hWnd, s);
+  App_SyncEditedState(s);
   return TRUE;
 }
 
@@ -97,9 +100,6 @@ BOOL FileOps_Open(HWND hWnd, AppState *s, char *path) {
     return FALSE;
   }
 
-  Cursor_SetPosition(&s->textBuffer, 0, 0); // Reset cursor to pos 0,0
-  App_RefreshEditorAfterAction(hWnd, s);
-  App_SyncEditedState(s);
   return TRUE;
 }
 
@@ -113,6 +113,12 @@ BOOL FileOps_WriteToPath(HWND hWnd, AppState *s, const char *path) {
 
   DWORD bytesWritten;
   char *strBuf = Buffer_ToString(&s->textBuffer);
+  if (!strBuf) {
+    MessageBox(hWnd, "Failed to convert file", "Error", MB_ICONERROR);
+    CloseHandle(hFile);
+    return FALSE;
+  }
+
   if (!WriteFile(hFile, strBuf, strlen(strBuf), &bytesWritten, NULL)) {
     MessageBox(hWnd, "Failed to write file", "Error", MB_ICONERROR);
     free(strBuf);
