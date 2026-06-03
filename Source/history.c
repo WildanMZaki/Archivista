@@ -2,31 +2,166 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Helper functions for History memory management */
+void HistoryAction_Init(HistoryAction *action)
+{
+    if (action)
+    {
+        action->edits = NULL;
+        action->editCount = 0;
+    }
+}
+
+void HistoryAction_Free(HistoryAction *action)
+{
+    if (action)
+    {
+        if (action->edits)
+        {
+            for (int i = 0; i < action->editCount; i++)
+            {
+                if (action->edits[i].text)
+                {
+                    free(action->edits[i].text);
+                }
+            }
+            free(action->edits);
+            action->edits = NULL;
+        }
+        action->editCount = 0;
+    }
+}
+
+void HistoryAction_AddEdit(HistoryAction *action, HistoryEditType type, const char *text, int row, int col, bool normalize)
+{
+    if (!action || !text)
+        return;
+
+    HistoryEdit *newEdits = (HistoryEdit *)realloc(action->edits, (action->editCount + 1) * sizeof(HistoryEdit));
+    if (!newEdits)
+        return;
+
+    action->edits = newEdits;
+    HistoryEdit *edit = &action->edits[action->editCount];
+    edit->type = type;
+    edit->row = row;
+    edit->col = col;
+    edit->text = NULL;
+
+    if (normalize)
+    {
+        // Normalization: \r\n or \r to \n
+        size_t len = 0;
+        const char *p = text;
+        while (*p != '\0')
+        {
+            if (*p == '\r')
+            {
+                if (*(p + 1) == '\n')
+                    p++;
+                len++;
+            }
+            else
+            {
+                len++;
+            }
+            p++;
+        }
+
+        edit->text = (char *)malloc(len + 1);
+        if (edit->text)
+        {
+            size_t out = 0;
+            p = text;
+            while (*p != '\0')
+            {
+                if (*p == '\r')
+                {
+                    if (*(p + 1) == '\n')
+                        p++;
+                    edit->text[out++] = '\n';
+                }
+                else
+                {
+                    edit->text[out++] = *p;
+                }
+                p++;
+            }
+            edit->text[out] = '\0';
+        }
+    }
+    else
+    {
+        size_t len = strlen(text);
+        edit->text = (char *)malloc(len + 1);
+        if (edit->text)
+        {
+            strcpy_s(edit->text, len + 1, text);
+        }
+    }
+
+    action->editCount++;
+}
+
+void HistoryAction_Copy(HistoryAction *dest, const HistoryAction *src)
+{
+    if (!dest || !src)
+        return;
+
+    dest->editCount = 0;
+    dest->edits = NULL;
+
+    if (src->editCount > 0)
+    {
+        dest->edits = (HistoryEdit *)malloc(src->editCount * sizeof(HistoryEdit));
+        if (dest->edits)
+        {
+            dest->editCount = src->editCount;
+            for (int i = 0; i < src->editCount; i++)
+            {
+                dest->edits[i].type = src->edits[i].type;
+                dest->edits[i].row = src->edits[i].row;
+                dest->edits[i].col = src->edits[i].col;
+                dest->edits[i].text = NULL;
+
+                if (src->edits[i].text)
+                {
+                    size_t len = strlen(src->edits[i].text);
+                    dest->edits[i].text = (char *)malloc(len + 1);
+                    if (dest->edits[i].text)
+                    {
+                        strcpy_s(dest->edits[i].text, len + 1, src->edits[i].text);
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void History_FreeStack(Stack *S)
+{
+    address P;
+    while (!isStackEmpty(*S))
+    {
+        DelLast(S, &P);
+        if (P != NULL)
+        {
+            if (P->data != NULL)
+            {
+                HistoryAction *action = (HistoryAction *)P->data;
+                HistoryAction_Free(action);
+            }
+            DeAlokasi(P);
+        }
+    }
+}
+
 /* Create insert action */
 HistoryAction History_CreateInsertAction(const char *text, int row, int col)
 {
     HistoryAction action;
-
-    /* Initialize add part */
-    action.add.row = row;
-    action.add.col = col;
-    action.add.active = true;
-
-    if (text && strlen(text) < HISTORY_ACTION_BUFFER_SIZE)
-    {
-        strcpy_s(action.add.text, HISTORY_ACTION_BUFFER_SIZE, text);
-    }
-    else
-    {
-        action.add.text[0] = '\0';
-    }
-
-    /* Initialize delete part - not active for this action type */
-    action.delete.row = row;
-    action.delete.col = col;
-    action.delete.active = false;
-    action.delete.text[0] = '\0';
-
+    HistoryAction_Init(&action);
+    HistoryAction_AddEdit(&action, HISTORY_EDIT_INSERT, text, row, col, true);
     return action;
 }
 
@@ -34,27 +169,8 @@ HistoryAction History_CreateInsertAction(const char *text, int row, int col)
 HistoryAction History_CreateDeleteAction(const char *text, int row, int col)
 {
     HistoryAction action;
-
-    /* Initialize delete part */
-    action.delete.row = row;
-    action.delete.col = col;
-    action.delete.active = true;
-
-    if (text && strlen(text) < HISTORY_ACTION_BUFFER_SIZE)
-    {
-        strcpy_s(action.delete.text, HISTORY_ACTION_BUFFER_SIZE, text);
-    }
-    else
-    {
-        action.delete.text[0] = '\0';
-    }
-
-    /* Initialize add part - not active for this action type */
-    action.add.row = row;
-    action.add.col = col;
-    action.add.active = false;
-    action.add.text[0] = '\0';
-
+    HistoryAction_Init(&action);
+    HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, text, row, col, true);
     return action;
 }
 
@@ -74,8 +190,8 @@ void History_Free(EditHistory *history)
     if (!history)
         return;
 
-    DeleteAll(&history->undoStack);
-    DeleteAll(&history->redoStack);
+    History_FreeStack(&history->undoStack);
+    History_FreeStack(&history->redoStack);
 }
 
 /* Clear history */
@@ -110,23 +226,22 @@ void History_PushAction(EditHistory *history, HistoryAction action)
         return;
 
     /* Check if there's anything meaningful to push */
-    bool hasAdd = action.add.active && action.add.text[0] != '\0';
-    bool hasDelete = action.delete.active && action.delete.text[0] != '\0';
-
-    if (!hasAdd && !hasDelete)
+    if (action.editCount == 0)
+    {
+        HistoryAction_Free(&action);
         return;
+    }
 
     Push(&history->undoStack, &action, sizeof(HistoryAction));
 
     /* Clear redo stack saat ada action baru */
-    DeleteAll(&history->redoStack);
+    History_FreeStack(&history->redoStack);
 }
 
 /* Perform undo */
 bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction)
 {
     HistoryAction *currentAction;
-    HistoryAction reverseAction;
     void *popData;
     int popSize;
 
@@ -147,15 +262,15 @@ bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
     }
 
     currentAction = (HistoryAction *)popData;
-    *outAction = *currentAction;
+    
+    /* Deep copy to outAction so the caller gets a copy of strings they own and must free */
+    HistoryAction_Copy(outAction, currentAction);
 
-    /* Create reverse action untuk redo - swap add/delete */
-    reverseAction.add = currentAction->delete;
-    reverseAction.delete = currentAction->add;
+    /* Push exactly the same action to redo stack (transferring ownership is fine since it's copied via Push's memcpy) */
+    Push(&history->redoStack, currentAction, sizeof(HistoryAction));
 
-    /* Push reverse action ke redo stack */
-    Push(&history->redoStack, &reverseAction, sizeof(HistoryAction));
-
+    /* Since Push copied currentAction's pointers, the redo stack now owns the strings.
+       So we only free the container popData, NOT the strings in currentAction! */
     free(popData);
     return true;
 }
@@ -164,7 +279,6 @@ bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
 bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction)
 {
     HistoryAction *redoAction;
-    HistoryAction reverseAction;
     void *popData;
     int popSize;
 
@@ -185,15 +299,15 @@ bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
     }
 
     redoAction = (HistoryAction *)popData;
-    *outAction = *redoAction;
+    
+    /* Deep copy to outAction so the caller gets a copy of strings they own and must free */
+    HistoryAction_Copy(outAction, redoAction);
 
-    /* Create reverse action untuk undo - swap add/delete */
-    reverseAction.add = redoAction->delete;
-    reverseAction.delete = redoAction->add;
+    /* Push exactly the same action to undo stack (transferring ownership is fine since it's copied via Push's memcpy) */
+    Push(&history->undoStack, redoAction, sizeof(HistoryAction));
 
-    /* Push reverse action ke undo stack */
-    Push(&history->undoStack, &reverseAction, sizeof(HistoryAction));
-
+    /* Since Push copied redoAction's pointers, the undo stack now owns the strings.
+       So we only free the container popData, NOT the strings in redoAction! */
     free(popData);
     return true;
 }

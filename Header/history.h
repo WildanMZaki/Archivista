@@ -5,20 +5,24 @@
 #include "buffer.h"
 #include "../Source/stack/stack.h"
 
-#define HISTORY_ACTION_BUFFER_SIZE 256
+typedef enum
+{
+    HISTORY_EDIT_INSERT,
+    HISTORY_EDIT_DELETE
+} HistoryEditType;
 
 typedef struct
 {
-    char text[HISTORY_ACTION_BUFFER_SIZE];
+    HistoryEditType type;
+    char *text;
     int row;
     int col;
-    bool active;
-} HistoryActionPart;
+} HistoryEdit;
 
 typedef struct
 {
-    HistoryActionPart add;    /* Teks yang ditambahkan */
-    HistoryActionPart delete; /* Teks yang dihapus */
+    HistoryEdit *edits;
+    int editCount;
 } HistoryAction;
 
 typedef struct
@@ -26,6 +30,12 @@ typedef struct
     Stack undoStack;
     Stack redoStack;
 } EditHistory;
+
+/* Helper functions for History memory management */
+void HistoryAction_Init(HistoryAction *action);
+void HistoryAction_Free(HistoryAction *action);
+void HistoryAction_AddEdit(HistoryAction *action, HistoryEditType type, const char *text, int row, int col, bool normalize);
+void HistoryAction_Copy(HistoryAction *dest, const HistoryAction *src);
 
 /* Create insert action */
 HistoryAction History_CreateInsertAction(const char *text, int row, int col);

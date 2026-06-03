@@ -2,6 +2,7 @@
 #define ARCHIVISTA_SEARCH_H
 
 #include "app.h"
+#include "history.h"
 #include <commdlg.h>
 #include <windows.h>
 
@@ -31,7 +32,7 @@ void Search_HandleMessage(HWND hWnd, AppState* appState, LPARAM lParam);
 
 // Logika Pencarian & Replace Internal
 BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCase, BOOL searchDown, BOOL silent);
-void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* findWhat, const char* replaceWith);
+void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* findWhat, const char* replaceWith, HistoryAction *groupAction);
 void Search_ReplaceAll(HWND hWnd, AppState* appState, const char* findWhat, const char* replaceWith, BOOL matchCase);
 
 #endif // ARCHIVISTA_SEARCH_H

@@ -59,7 +59,7 @@ void Search_HandleMessage(HWND hWnd, AppState *s, LPARAM lParam) {
   }
   else if (lpfr->Flags & FR_REPLACE)
   {
-    Search_ReplaceCurrent(hWnd, s, matchCase, g_searchState.szFindWhat, g_searchState.szReplaceWith);
+    Search_ReplaceCurrent(hWnd, s, matchCase, g_searchState.szFindWhat, g_searchState.szReplaceWith, NULL);
     Search_FindNext(hWnd, s, g_searchState.szFindWhat, matchCase, searchDown, FALSE);
   }
   else if (lpfr->Flags & FR_REPLACEALL)
@@ -189,7 +189,7 @@ BOOL Search_FindNext(HWND hWnd, AppState *s, const char* findWhat, BOOL matchCas
 }
 
 
-void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* findWhat, const char* replaceWith) {
+void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* findWhat, const char* replaceWith, HistoryAction *groupAction) {
   TextBuffer *buf = &s->textBuffer;
 
   if (!s->selection.active)
@@ -202,6 +202,23 @@ void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* f
     return;
   }
 
+  // Get selection coordinates before replacement modifies the buffer and selection
+  TextPos selectionStart;
+  TextPos selectionEnd;
+  Buffer_NormalizeSelection(buf, &s->selection, &selectionStart, &selectionEnd);
+
+  // Capture history action
+  HistoryAction localAction;
+  HistoryAction *actionPtr = groupAction;
+  if (!actionPtr) {
+    HistoryAction_Init(&localAction);
+    actionPtr = &localAction;
+  }
+
+  // Record replacement edits (both delete old string and insert new string)
+  HistoryAction_AddEdit(actionPtr, HISTORY_EDIT_DELETE, selected, selectionStart.row, selectionStart.col, true);
+  HistoryAction_AddEdit(actionPtr, HISTORY_EDIT_INSERT, replaceWith, selectionStart.row, selectionStart.col, true);
+
   free(selected);
   InsertStringResult result = Buffer_InsertString(buf, replaceWith, &s->selection);
   Buffer_FreeInsertStringResult(&result);
@@ -210,6 +227,10 @@ void Search_ReplaceCurrent(HWND hWnd, AppState *s, BOOL matchCase, const char* f
 
   s->isEdited = TRUE;
   App_RefreshEditorAfterAction(hWnd, s);
+
+  if (!groupAction) {
+    History_PushAction(&s->history, localAction);
+  }
 }
 
 void Search_ReplaceAll(HWND hWnd, AppState *s,
@@ -218,6 +239,10 @@ void Search_ReplaceAll(HWND hWnd, AppState *s,
   s->selection.active = 0;
   int counter = 0;
   int prevRow = -1, prevCol = -1;
+
+  HistoryAction groupAction;
+  HistoryAction_Init(&groupAction);
+
   while (Search_FindNext(hWnd, s, findWhat, matchCase, TRUE, TRUE)) {
     int curRow = s->textBuffer.cursorRow;
     int curCol = s->textBuffer.cursorCol;
@@ -226,9 +251,16 @@ void Search_ReplaceAll(HWND hWnd, AppState *s,
       break;
     prevRow = curRow;
     prevCol = curCol;
-    Search_ReplaceCurrent(hWnd, s, matchCase,findWhat , replaceWith);
+    Search_ReplaceCurrent(hWnd, s, matchCase, findWhat, replaceWith, &groupAction);
     counter++;
   }
+
+  if (counter > 0) {
+    History_PushAction(&s->history, groupAction);
+  } else {
+    HistoryAction_Free(&groupAction);
+  }
+
   char msg[64];
   sprintf(msg, "Berhasil mengganti %d kata.", counter);
   MessageBox(NULL, msg, "Replace All", MB_OK | MB_ICONINFORMATION);
