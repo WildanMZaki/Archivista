@@ -13,6 +13,7 @@
 #include "../Header/zoom.h"
 #include "../Header/config.h"
 #include "../Header/utils.h"
+#include "../Header/window.h"
 
 static void App_CopyHistoryText(char *dst, size_t dstSize, const char *src)
 {
@@ -71,6 +72,51 @@ void App_RefreshEditorAfterAction(HWND hWnd, AppState *s)
   Scroll_UpdateScrollbars(hWnd);
   Scroll_EnsureCursorVisible(hWnd);
   InvalidateRect(hWnd, NULL, FALSE);
+  App_UpdateTitle(hWnd, s);
+}
+
+void App_UpdateTitle(HWND hWnd, AppState *s) {
+  if (!s) return;
+
+  const char *fileName = "Untitled";
+  if (s->currentFilePath[0] != '\0')
+  {
+    // Extract only the file name from the full path (Windows backslash or standard slash)
+    const char *lastBackslash = strrchr(s->currentFilePath, '\\');
+    const char *lastSlash = strrchr(s->currentFilePath, '/');
+    const char *tempName = s->currentFilePath;
+    if (lastBackslash != NULL && lastBackslash > tempName)
+    {
+      tempName = lastBackslash + 1;
+    }
+    if (lastSlash != NULL && lastSlash > tempName)
+    {
+      tempName = lastSlash + 1;
+    }
+    if (tempName[0] != '\0')
+    {
+      fileName = tempName;
+    }
+  }
+  // 2. Format the new title string
+  char titleBuffer[MAX_PATH + 100];
+  if (s->isEdited)
+  {
+    // Option B (with asterisk for modified state)
+    wsprintfA(titleBuffer, "*%s - %s", fileName, APP_TITLE);
+  }
+  else
+  {
+    // Option A (clean file name)
+    wsprintfA(titleBuffer, "%s - %s", fileName, APP_TITLE);
+  }
+  // 3. Optimize window updates to prevent flickering (only set text if it actually changed)
+  char currentTitle[MAX_PATH + 100];
+  GetWindowTextA(hWnd, currentTitle, sizeof(currentTitle));
+  if (strcmp(currentTitle, titleBuffer) != 0)
+  {
+    SetWindowTextA(hWnd, titleBuffer);
+  }
 }
 
 LRESULT App_OnCreate(HWND hWnd)
@@ -112,6 +158,8 @@ LRESULT App_OnCreate(HWND hWnd)
 
   Recent_LoadRecent();
   Recent_UpdateMenuRecent(hMenu);
+
+  App_UpdateTitle(hWnd, s);
 
   // Blink timer mulai ketika focus (behaviour sama seperti sebelumnya:
   // WM_SETFOCUS start)

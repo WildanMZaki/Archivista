@@ -126,6 +126,7 @@ BOOL FileOps_WriteToPath(HWND hWnd, AppState *s, const char *path) {
   CloseHandle(hFile);
   Recent_AddRecent(path);
   Recent_UpdateMenuRecent(GetMenu(hWnd));
+  App_UpdateTitle(hWnd, s);
   return TRUE;
 }
 

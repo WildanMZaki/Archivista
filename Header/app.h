@@ -40,6 +40,7 @@ void App_SyncEditedState(AppState *s);
 
 // Refresh editor UI after cursor/text/selection state changes.
 void App_RefreshEditorAfterAction(HWND hWnd, AppState *s);
+void App_UpdateTitle(HWND hWnd, AppState *s);
 
 LRESULT App_OnCreate(HWND hWnd);
 LRESULT App_OnDestroy(HWND hWnd);
