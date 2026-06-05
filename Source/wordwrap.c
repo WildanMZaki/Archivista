@@ -49,6 +49,9 @@ void WordWrap_Toggle(HWND hWnd, AppState *s)
         s->textBuffer.wrapCols = BUF_MAX_COLS - 1;
     }
 
+    // Clear selection since wrapping changes coordinate systems
+    s->selection.active = 0;
+
     // Reflow all lines in the buffer
     Buffer_ReflowAll(&s->textBuffer);
 
