@@ -216,37 +216,11 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   case ID_EDIT_UNDO:
     if (History_CanUndo(&s->history))
     {
-      HistoryAction undoAction;
-      HistoryAction_Init(&undoAction);
-      if (History_Undo(&s->history, &s->textBuffer, &undoAction))
+      if (History_Undo(&s->history, &s->textBuffer))
       {
-        /* Reverse edits in reverse order */
-        for (int i = undoAction.editCount - 1; i >= 0; i--)
-        {
-          HistoryEdit *edit = &undoAction.edits[i];
-          if (edit->type == HISTORY_EDIT_INSERT)
-          {
-            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
-            for (int j = 0; j < (int)strlen(edit->text); j++)
-              Buffer_Delete(&s->textBuffer);
-          }
-          else if (edit->type == HISTORY_EDIT_DELETE)
-          {
-            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
-            for (int j = 0; edit->text[j]; j++)
-            {
-              if (edit->text[j] == '\n')
-                Buffer_InsertNewline(&s->textBuffer);
-              else
-                Buffer_InsertChar(&s->textBuffer, edit->text[j]);
-            }
-          }
-        }
-
         s->selection.active = 0;
         App_SyncEditedState(s);
         App_RefreshEditorAfterAction(hWnd, s);
-        HistoryAction_Free(&undoAction);
       }
     }
     return 0;
@@ -254,37 +228,11 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   case ID_EDIT_REDO:
     if (History_CanRedo(&s->history))
     {
-      HistoryAction redoAction;
-      HistoryAction_Init(&redoAction);
-      if (History_Redo(&s->history, &s->textBuffer, &redoAction))
+      if (History_Redo(&s->history, &s->textBuffer))
       {
-        /* Apply edits in forward order */
-        for (int i = 0; i < redoAction.editCount; i++)
-        {
-          HistoryEdit *edit = &redoAction.edits[i];
-          if (edit->type == HISTORY_EDIT_INSERT)
-          {
-            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
-            for (int j = 0; edit->text[j]; j++)
-            {
-              if (edit->text[j] == '\n')
-                Buffer_InsertNewline(&s->textBuffer);
-              else
-                Buffer_InsertChar(&s->textBuffer, edit->text[j]);
-            }
-          }
-          else if (edit->type == HISTORY_EDIT_DELETE)
-          {
-            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
-            for (int j = 0; j < (int)strlen(edit->text); j++)
-              Buffer_Delete(&s->textBuffer);
-          }
-        }
-
         s->selection.active = 0;
         App_SyncEditedState(s);
         App_RefreshEditorAfterAction(hWnd, s);
-        HistoryAction_Free(&redoAction);
       }
     }
     return 0;

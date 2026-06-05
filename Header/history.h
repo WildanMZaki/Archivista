@@ -65,9 +65,9 @@ bool History_CanRedo(const EditHistory *history);
 void History_PushAction(EditHistory *history, HistoryAction action);
 
 /* Perform undo, apply reverse action ke buffer */
-bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction);
+bool History_Undo(EditHistory *history, TextBuffer *buffer);
 
 /* Perform redo, apply action ke buffer */
-bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction);
+bool History_Redo(EditHistory *history, TextBuffer *buffer);
 
 #endif // ARCHIVISTA_HISTORY_H
