@@ -5,6 +5,10 @@
 #include "../Header/cursor.h"
 #include "../Header/scroll.h"
 #include "../Header/zoom.h"
+#include "../Header/zoom.h"
+
+#define MOUSE_AUTOSCROLL_TIMER_ID 2
+#define MOUSE_AUTOSCROLL_INTERVAL 50
 
 static DWORD s_lastDblClkTime = 0;
 static BOOL s_isWordLineSelection = FALSE;
@@ -36,6 +40,7 @@ LRESULT Mouse_OnLButtonDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     // Kunci kursor (supaya tetap terpantau meski mouse keluar aplikasi)
     SetCapture(hWnd);
+    SetTimer(hWnd, MOUSE_AUTOSCROLL_TIMER_ID, MOUSE_AUTOSCROLL_INTERVAL, NULL);
 
     Cursor_ResetBlink(hWnd, s);
     SetFocus(hWnd);
@@ -90,6 +95,7 @@ LRESULT Mouse_OnLButtonUp(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     // Lepaskan kuncian kursor
     ReleaseCapture();
+    KillTimer(hWnd, MOUSE_AUTOSCROLL_TIMER_ID);
 
     if (s->selection.active) {
         // Rekam pergerakan terakhir mouse sepersekian detik sebelum diangkat
@@ -135,4 +141,50 @@ LRESULT Mouse_OnMouseWheel(HWND hWnd, WPARAM wParam, LPARAM lParam)
     Scroll_Vertical(hWnd, s, wParam);
     InvalidateRect(hWnd, NULL, FALSE);
     return 0;
+}
+
+LRESULT Mouse_OnMouseHWheel(HWND hWnd, WPARAM wParam, LPARAM lParam)
+{
+    AppState *s = App_GetState(hWnd);
+    if (!s)
+        return 0;
+
+    Scroll_Horizontal(hWnd, s, wParam);
+    InvalidateRect(hWnd, NULL, FALSE);
+    return 0;
+}
+
+LRESULT Mouse_OnTimer(HWND hWnd, WPARAM wParam, AppState *s)
+{
+    if (wParam == MOUSE_AUTOSCROLL_TIMER_ID)
+    {
+        if (s->selection.active && (GetAsyncKeyState(VK_LBUTTON) & 0x8000))
+        {
+            POINT pt;
+            GetCursorPos(&pt);
+            ScreenToClient(hWnd, &pt);
+            
+            RECT rc;
+            GetClientRect(hWnd, &rc);
+            
+            // Check if outside horizontally or vertically
+            if (pt.y < rc.top || pt.y > rc.bottom || pt.x < rc.left || pt.x > rc.right)
+            {
+                int row, col;
+                LPARAM fakeLParam = MAKELPARAM((short)pt.x, (short)pt.y);
+                Cursor_GetPositionFromMouse(fakeLParam, s, &row, &col);
+                Selection_SetEnd(s, row, col);
+                Buffer_SetCursorPosition(&s->textBuffer, row, col);
+                Scroll_EnsureCursorVisible(hWnd);
+                InvalidateRect(hWnd, NULL, FALSE);
+            }
+        }
+        else if (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000))
+        {
+            // Failsafe
+            KillTimer(hWnd, MOUSE_AUTOSCROLL_TIMER_ID);
+        }
+        return 0;
+    }
+    return -1;
 }

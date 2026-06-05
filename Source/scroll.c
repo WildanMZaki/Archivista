@@ -193,6 +193,18 @@ void Scroll_Vertical(HWND hWnd, AppState *s, WPARAM wParam)
     Scroll_UpdateScrollbars(hWnd);
 }
 
+void Scroll_Horizontal(HWND hWnd, AppState *s, WPARAM wParam)
+{
+    if (!s)
+        return;
+
+    int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+    int step = s->charWidth > 0 ? s->charWidth : 1;
+
+    s->scrollX += (delta / WHEEL_DELTA) * step * 3;
+    Scroll_UpdateScrollbars(hWnd);
+}
+
 static void Scroll_HandleBar(HWND hWnd, int bar, WPARAM wParam)
 {
     AppState *s = App_GetState(hWnd);

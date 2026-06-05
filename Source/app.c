@@ -15,6 +15,7 @@
 #include "../Header/utils.h"
 #include "../Header/window.h"
 #include "../Header/wordwrap.h"
+#include "../Header/mouse.h"
 
 
 void App_AttachState(HWND hWnd, AppState *state)
@@ -185,6 +186,8 @@ LRESULT App_OnKillFocus(HWND hWnd)
 LRESULT App_OnTimer(HWND hWnd, WPARAM wParam)
 {
   AppState *s = App_GetState(hWnd);
+  LRESULT res = Mouse_OnTimer(hWnd, wParam, s);
+  if (res != -1) return res;
   return Cursor_OnTimer(hWnd, wParam, s);
 }
 

@@ -73,6 +73,8 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return Mouse_OnLButtonDown(hWnd, wParam, lParam);
   case WM_MOUSEWHEEL:
     return Mouse_OnMouseWheel(hWnd, wParam, lParam);
+  case WM_MOUSEHWHEEL:
+    return Mouse_OnMouseHWheel(hWnd, wParam, lParam);
   case WM_MOUSEMOVE:
     return Mouse_OnMouseMove(hWnd, wParam, lParam);
   case WM_LBUTTONUP:
