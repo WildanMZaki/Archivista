@@ -25,6 +25,22 @@ static TextPos Keyboard_GetInsertStart(const TextBuffer *buffer, const TextSelec
     return start;
 }
 
+static void Keyboard_HandleSelectionDelete(AppState *s, HistoryAction *action)
+{
+    char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
+    if (sel)
+    {
+        TextPos selectionStart;
+        TextPos selectionEnd;
+
+        Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
+        HistoryAction_AddEdit(action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
+        free(sel);
+        Buffer_DeleteSelection(&s->textBuffer, &s->selection);
+        Keyboard_ClearSelection(s);
+    }
+}
+
 LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
 {
     AppState *s = App_GetState(hWnd);
@@ -38,37 +54,16 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     if (c == '\r')
     {
-        /* If selection exists, record it as a delete action first */
-        char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
-        if (sel)
-        {
-            TextPos selectionStart;
-            TextPos selectionEnd;
-
-            Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
-            free(sel);
-            Buffer_DeleteSelection(&s->textBuffer, &s->selection);
-            Keyboard_ClearSelection(s);
-        }
+        Keyboard_HandleSelectionDelete(s, &action);
 
         Buffer_InsertNewline(&s->textBuffer);
         HistoryAction_AddEdit(&action, HISTORY_EDIT_INSERT, "\n", insertStart.row, insertStart.col, false);
     }
     else if (c == '\b' || c == 127)
     {
-        /* If selection exists, capture and delete it */
-        char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
-        if (sel)
+        if (Buffer_HasSelection(&s->textBuffer, &s->selection))
         {
-            TextPos selectionStart;
-            TextPos selectionEnd;
-
-            Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
-            free(sel);
-            Buffer_DeleteSelection(&s->textBuffer, &s->selection);
-            Keyboard_ClearSelection(s);
+            Keyboard_HandleSelectionDelete(s, &action);
         }
         else
         {
@@ -126,18 +121,7 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
     }
     else if (c == '\t')
     {
-        char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
-        if (sel)
-        {
-            TextPos selectionStart;
-            TextPos selectionEnd;
-
-            Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
-            free(sel);
-            Buffer_DeleteSelection(&s->textBuffer, &s->selection);
-            Keyboard_ClearSelection(s);
-        }
+        Keyboard_HandleSelectionDelete(s, &action);
 
         for (int i = 0; i < 4; i++)
             Buffer_InsertChar(&s->textBuffer, ' ');
@@ -145,36 +129,14 @@ LRESULT Keyboard_OnChar(HWND hWnd, WPARAM wParam, LPARAM lParam)
     }
     else if (c == ' ')
     {
-        char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
-        if (sel)
-        {
-            TextPos selectionStart;
-            TextPos selectionEnd;
-
-            Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
-            free(sel);
-            Buffer_DeleteSelection(&s->textBuffer, &s->selection);
-            Keyboard_ClearSelection(s);
-        }
+        Keyboard_HandleSelectionDelete(s, &action);
 
         Buffer_InsertChar(&s->textBuffer, c);
         HistoryAction_AddEdit(&action, HISTORY_EDIT_INSERT, " ", insertStart.row, insertStart.col, false);
     }
     else if (c >= 32 && c != 127)
     {
-        char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
-        if (sel)
-        {
-            TextPos selectionStart;
-            TextPos selectionEnd;
-
-            Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryAction_AddEdit(&action, HISTORY_EDIT_DELETE, sel, selectionStart.row, selectionStart.col, true);
-            free(sel);
-            Buffer_DeleteSelection(&s->textBuffer, &s->selection);
-            Keyboard_ClearSelection(s);
-        }
+        Keyboard_HandleSelectionDelete(s, &action);
 
         Buffer_InsertChar(&s->textBuffer, c);
         char temp[2] = { c, '\0' };
