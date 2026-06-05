@@ -248,50 +248,10 @@ LRESULT Keyboard_OnKeyDown(HWND hWnd, WPARAM wParam, LPARAM lParam)
 
     case VK_DELETE:
     {
-        int row = s->textBuffer.cursorRow;
-        int col = s->textBuffer.cursorCol;
-
-        /* If selection exists, capture it and push as single delete action */
-        char *sel = Buffer_GetSelectedString(&s->textBuffer, &s->selection);
-        if (sel)
-        {
-            TextPos selectionStart;
-            TextPos selectionEnd;
-
-            Buffer_NormalizeSelection(&s->textBuffer, &s->selection, &selectionStart, &selectionEnd);
-            HistoryAction del = History_CreateDeleteAction(sel, selectionStart.row, selectionStart.col);
-            History_PushAction(&s->history, del);
-            free(sel);
-            Buffer_DeleteSelection(&s->textBuffer, &s->selection);
-            Keyboard_ClearSelection(s);
-            App_SyncEditedState(s);
-            break;
-        }
-
-        char deletedText[2] = {0};
-
-        /* Capture what will be deleted */
-        if (col < Buffer_GetLineLen(&s->textBuffer, row))
-        {
-            /* Delete character at cursor */
-            deletedText[0] = Buffer_GetLineText(&s->textBuffer, row)[col];
-            deletedText[1] = '\0';
-        }
-        else if (row < Buffer_GetLineCount(&s->textBuffer) - 1)
-        {
-            /* Delete newline (join with next line) */
-            deletedText[0] = '\n';
-            deletedText[1] = '\0';
-        }
-
-        if (deletedText[0] != '\0') /* Only record if something was actually deleted */
-        {
-            HistoryAction deleteAction = History_CreateDeleteAction(deletedText, row, col);
-            Buffer_Delete(&s->textBuffer);
-            History_PushAction(&s->history, deleteAction);
-        }
+        History_RecordAndExecuteDelete(&s->history, &s->textBuffer, &s->selection);
         App_SyncEditedState(s);
-        break;
+        App_RefreshEditorAfterAction(hWnd, s);
+        return 0;
     }
 
     default:

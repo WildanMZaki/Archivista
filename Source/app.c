@@ -372,14 +372,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   }
 
   case ID_EDIT_DELETE:
-    if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
-    {
-      s->selection.active = 0;
-    }
-    else
-    {
-      Buffer_Delete(&s->textBuffer);
-    }
+    History_RecordAndExecuteDelete(&s->history, &s->textBuffer, &s->selection);
     App_SyncEditedState(s);
     App_RefreshEditorAfterAction(hWnd, s);
     return 0;

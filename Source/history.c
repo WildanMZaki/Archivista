@@ -174,6 +174,52 @@ HistoryAction History_CreateDeleteAction(const char *text, int row, int col)
     return action;
 }
 
+void History_RecordAndExecuteDelete(EditHistory *history, TextBuffer *buf, TextSelection *sel)
+{
+    if (!history || !buf || !sel) return;
+
+    /* If selection exists, capture it and push as single delete action */
+    char *selected = Buffer_GetSelectedString(buf, sel);
+    if (selected)
+    {
+        TextPos selectionStart;
+        TextPos selectionEnd;
+
+        Buffer_NormalizeSelection(buf, sel, &selectionStart, &selectionEnd);
+        HistoryAction del = History_CreateDeleteAction(selected, selectionStart.row, selectionStart.col);
+        History_PushAction(history, del);
+        free(selected);
+        Buffer_DeleteSelection(buf, sel);
+        sel->active = 0;
+        return;
+    }
+
+    int row = buf->cursorRow;
+    int col = buf->cursorCol;
+    char deletedText[2] = {0};
+
+    /* Capture what will be deleted */
+    if (col < Buffer_GetLineLen(buf, row))
+    {
+        /* Delete character at cursor */
+        deletedText[0] = Buffer_GetLineText(buf, row)[col];
+        deletedText[1] = '\0';
+    }
+    else if (row < Buffer_GetLineCount(buf) - 1)
+    {
+        /* Delete newline (join with next line) */
+        deletedText[0] = '\n';
+        deletedText[1] = '\0';
+    }
+
+    if (deletedText[0] != '\0') /* Only record if something was actually deleted */
+    {
+        HistoryAction deleteAction = History_CreateDeleteAction(deletedText, row, col);
+        Buffer_Delete(buf);
+        History_PushAction(history, deleteAction);
+    }
+}
+
 /* Init history */
 void History_Init(EditHistory *history)
 {

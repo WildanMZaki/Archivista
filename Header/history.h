@@ -43,6 +43,9 @@ HistoryAction History_CreateInsertAction(const char *text, int row, int col);
 /* Create delete action */
 HistoryAction History_CreateDeleteAction(const char *text, int row, int col);
 
+/* Helper to record and execute delete (either selection or single char) */
+void History_RecordAndExecuteDelete(EditHistory *history, TextBuffer *buf, TextSelection *sel);
+
 /* Init history */
 void History_Init(EditHistory *history);
 
