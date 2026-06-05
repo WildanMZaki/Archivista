@@ -447,11 +447,22 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       return 0;
 
   case ID_HELP_ABOUT:
-    MessageBox(hWnd,
-               "Archivista v1.0\n"
-               "Simple Text Editor\n\n"
-               "Proyek 2 - Teknik Informatika",
-               "About Archivista", MB_OK | MB_ICONINFORMATION);
+      char version[64];
+      GetAppVersion(version, sizeof(version));
+
+      char aboutText[256];
+      wsprintfA(
+          aboutText,
+          "Archivista v%s\n"
+          "Simple Text Editor\n\n"
+          "Proyek 2 - Teknik Informatika",
+          version);
+
+      MessageBoxA(
+          hWnd,
+          aboutText,
+          "About Archivista",
+          MB_OK | MB_ICONINFORMATION);
     return 0;
 
   default:

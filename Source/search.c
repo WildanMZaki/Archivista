@@ -4,8 +4,6 @@
 #include "../Header/goto.h"
 #include <shlwapi.h>
 
-#pragma comment(lib, "Shlwapi.lib")
-
 SearchState g_searchState = {0};
 
 void Search_Init() {

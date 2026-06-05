@@ -59,3 +59,5 @@ add_executable(Archivista WIN32
 
         ${CMAKE_BINARY_DIR}/app.rc
 )
+
+target_link_libraries(Archivista PRIVATE version Shlwapi)
