@@ -419,9 +419,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
           RECT rc;
           GetClientRect(hWnd, &rc);
           int clientWidth = rc.right - rc.left;
-          int charWidth = s->charWidth > 0 ? s->charWidth : 1;
-          int wrapCols = (clientWidth - TEXT_PADDING_LEFT) / charWidth;
-          s->textBuffer.wrapCols = (wrapCols < 10) ? 10 : wrapCols;
+          s->textBuffer.wrapCols = CalcWrapCols(clientWidth, s->charWidth);
       }
       else
       {
