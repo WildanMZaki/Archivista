@@ -6,6 +6,7 @@
 #include "../Header/search.h"
 #include "../Header/scroll.h"
 #include "../Header/main.h"
+#include "../Header/wordwrap.h"
 
 LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -47,9 +48,7 @@ LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
               RECT rc;
               GetClientRect(hWnd, &rc);
               int clientWidth = rc.right - rc.left;
-              int charWidth = s->charWidth > 0 ? s->charWidth : 1;
-              int wrapCols = (clientWidth - TEXT_PADDING_LEFT) / charWidth;
-              s->textBuffer.wrapCols = (wrapCols < 10) ? 10 : wrapCols;
+              s->textBuffer.wrapCols = CalcWrapCols(clientWidth, s->charWidth);
               Buffer_ReflowAll(&s->textBuffer);
           }
           Scroll_UpdateScrollbars(hWnd);

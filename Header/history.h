@@ -43,6 +43,9 @@ HistoryAction History_CreateInsertAction(const char *text, int row, int col);
 /* Create delete action */
 HistoryAction History_CreateDeleteAction(const char *text, int row, int col);
 
+/* Helper to record and execute delete (either selection or single char) */
+void History_RecordAndExecuteDelete(EditHistory *history, TextBuffer *buf, TextSelection *sel);
+
 /* Init history */
 void History_Init(EditHistory *history);
 
@@ -62,9 +65,9 @@ bool History_CanRedo(const EditHistory *history);
 void History_PushAction(EditHistory *history, HistoryAction action);
 
 /* Perform undo, apply reverse action ke buffer */
-bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction);
+bool History_Undo(EditHistory *history, TextBuffer *buffer);
 
 /* Perform redo, apply action ke buffer */
-bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction);
+bool History_Redo(EditHistory *history, TextBuffer *buffer);
 
 #endif // ARCHIVISTA_HISTORY_H

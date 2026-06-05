@@ -32,6 +32,7 @@ add_executable(Archivista WIN32
         Source/goto.c
         Source/zoom.c
         Source/config.c
+        Source/wordwrap.c
 
         Header/app.h
         Header/buffer.h
@@ -56,6 +57,7 @@ add_executable(Archivista WIN32
         Header/utils.h
         Header/config.h
         Header/resource.h
+        Header/wordwrap.h
 
         ${CMAKE_BINARY_DIR}/app.rc
 )

@@ -1196,6 +1196,9 @@ int Buffer_DeleteSelection(TextBuffer *buf, const TextSelection *sel)
         free(part2);
     }
 
+    buf->cursorNode = NULL;
+    Buffer_SetCursorPosition(buf, start.row, start.col);
+
     return 1;
 }
 

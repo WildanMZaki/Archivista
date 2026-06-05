@@ -1,4 +1,5 @@
 #include "../Header/history.h"
+#include "../Header/cursor.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -174,6 +175,52 @@ HistoryAction History_CreateDeleteAction(const char *text, int row, int col)
     return action;
 }
 
+void History_RecordAndExecuteDelete(EditHistory *history, TextBuffer *buf, TextSelection *sel)
+{
+    if (!history || !buf || !sel) return;
+
+    /* If selection exists, capture it and push as single delete action */
+    char *selected = Buffer_GetSelectedString(buf, sel);
+    if (selected)
+    {
+        TextPos selectionStart;
+        TextPos selectionEnd;
+
+        Buffer_NormalizeSelection(buf, sel, &selectionStart, &selectionEnd);
+        HistoryAction del = History_CreateDeleteAction(selected, selectionStart.row, selectionStart.col);
+        History_PushAction(history, del);
+        free(selected);
+        Buffer_DeleteSelection(buf, sel);
+        sel->active = 0;
+        return;
+    }
+
+    int row = buf->cursorRow;
+    int col = buf->cursorCol;
+    char deletedText[2] = {0};
+
+    /* Capture what will be deleted */
+    if (col < Buffer_GetLineLen(buf, row))
+    {
+        /* Delete character at cursor */
+        deletedText[0] = Buffer_GetLineText(buf, row)[col];
+        deletedText[1] = '\0';
+    }
+    else if (row < Buffer_GetLineCount(buf) - 1)
+    {
+        /* Delete newline (join with next line) */
+        deletedText[0] = '\n';
+        deletedText[1] = '\0';
+    }
+
+    if (deletedText[0] != '\0') /* Only record if something was actually deleted */
+    {
+        HistoryAction deleteAction = History_CreateDeleteAction(deletedText, row, col);
+        Buffer_Delete(buf);
+        History_PushAction(history, deleteAction);
+    }
+}
+
 /* Init history */
 void History_Init(EditHistory *history)
 {
@@ -239,13 +286,13 @@ void History_PushAction(EditHistory *history, HistoryAction action)
 }
 
 /* Perform undo */
-bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction)
+bool History_Undo(EditHistory *history, TextBuffer *buffer)
 {
     HistoryAction *currentAction;
     void *popData;
     int popSize;
 
-    if (!history || !buffer || !outAction)
+    if (!history || !buffer)
         return false;
 
     if (!History_CanUndo(history))
@@ -263,10 +310,30 @@ bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
 
     currentAction = (HistoryAction *)popData;
     
-    /* Deep copy to outAction so the caller gets a copy of strings they own and must free */
-    HistoryAction_Copy(outAction, currentAction);
+    /* Reverse edits in reverse order */
+    for (int i = currentAction->editCount - 1; i >= 0; i--)
+    {
+        HistoryEdit *edit = &currentAction->edits[i];
+        if (edit->type == HISTORY_EDIT_INSERT)
+        {
+            Cursor_SetPosition(buffer, edit->row, edit->col);
+            for (int j = 0; j < (int)strlen(edit->text); j++)
+                Buffer_Delete(buffer);
+        }
+        else if (edit->type == HISTORY_EDIT_DELETE)
+        {
+            Cursor_SetPosition(buffer, edit->row, edit->col);
+            for (int j = 0; edit->text[j]; j++)
+            {
+                if (edit->text[j] == '\n')
+                    Buffer_InsertNewline(buffer);
+                else
+                    Buffer_InsertChar(buffer, edit->text[j]);
+            }
+        }
+    }
 
-    /* Push exactly the same action to redo stack (transferring ownership is fine since it's copied via Push's memcpy) */
+    /* Push exactly the same action to redo stack */
     Push(&history->redoStack, currentAction, sizeof(HistoryAction));
 
     /* Since Push copied currentAction's pointers, the redo stack now owns the strings.
@@ -276,13 +343,13 @@ bool History_Undo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
 }
 
 /* Perform redo */
-bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAction)
+bool History_Redo(EditHistory *history, TextBuffer *buffer)
 {
     HistoryAction *redoAction;
     void *popData;
     int popSize;
 
-    if (!history || !buffer || !outAction)
+    if (!history || !buffer)
         return false;
 
     if (!History_CanRedo(history))
@@ -300,10 +367,30 @@ bool History_Redo(EditHistory *history, TextBuffer *buffer, HistoryAction *outAc
 
     redoAction = (HistoryAction *)popData;
     
-    /* Deep copy to outAction so the caller gets a copy of strings they own and must free */
-    HistoryAction_Copy(outAction, redoAction);
+    /* Apply edits in forward order */
+    for (int i = 0; i < redoAction->editCount; i++)
+    {
+        HistoryEdit *edit = &redoAction->edits[i];
+        if (edit->type == HISTORY_EDIT_INSERT)
+        {
+            Cursor_SetPosition(buffer, edit->row, edit->col);
+            for (int j = 0; edit->text[j]; j++)
+            {
+                if (edit->text[j] == '\n')
+                    Buffer_InsertNewline(buffer);
+                else
+                    Buffer_InsertChar(buffer, edit->text[j]);
+            }
+        }
+        else if (edit->type == HISTORY_EDIT_DELETE)
+        {
+            Cursor_SetPosition(buffer, edit->row, edit->col);
+            for (int j = 0; j < (int)strlen(edit->text); j++)
+                Buffer_Delete(buffer);
+        }
+    }
 
-    /* Push exactly the same action to undo stack (transferring ownership is fine since it's copied via Push's memcpy) */
+    /* Push exactly the same action to undo stack */
     Push(&history->undoStack, redoAction, sizeof(HistoryAction));
 
     /* Since Push copied redoAction's pointers, the undo stack now owns the strings.

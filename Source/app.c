@@ -14,6 +14,7 @@
 #include "../Header/config.h"
 #include "../Header/utils.h"
 #include "../Header/window.h"
+#include "../Header/wordwrap.h"
 
 
 void App_AttachState(HWND hWnd, AppState *state)
@@ -90,11 +91,14 @@ LRESULT App_OnCreate(HWND hWnd)
 
   App_AttachState(hWnd, s);
   Buffer_Init(&s->textBuffer);
+  History_Init(&s->history);
 
   App_SyncEditedState(s);
 
   HMENU hMenu = CreateAppMenu();
   SetMenu(hWnd, hMenu);
+  
+  WordWrap_Init(hWnd, s);
 
   int loadedSize = Config_ReadInt("Settings", "ZoomSize", ZOOM_DEFAULT);
   if (loadedSize < ZOOM_MIN || loadedSize > ZOOM_MAX) {
@@ -143,6 +147,7 @@ LRESULT App_OnDestroy(HWND hWnd)
 
   if (s)
   {
+    History_Free(&s->history);
     Buffer_Free(&s->textBuffer);
     if (s->editorFont)
       DeleteObject(s->editorFont);
@@ -214,37 +219,11 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   case ID_EDIT_UNDO:
     if (History_CanUndo(&s->history))
     {
-      HistoryAction undoAction;
-      HistoryAction_Init(&undoAction);
-      if (History_Undo(&s->history, &s->textBuffer, &undoAction))
+      if (History_Undo(&s->history, &s->textBuffer))
       {
-        /* Reverse edits in reverse order */
-        for (int i = undoAction.editCount - 1; i >= 0; i--)
-        {
-          HistoryEdit *edit = &undoAction.edits[i];
-          if (edit->type == HISTORY_EDIT_INSERT)
-          {
-            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
-            for (int j = 0; j < (int)strlen(edit->text); j++)
-              Buffer_Delete(&s->textBuffer);
-          }
-          else if (edit->type == HISTORY_EDIT_DELETE)
-          {
-            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
-            for (int j = 0; edit->text[j]; j++)
-            {
-              if (edit->text[j] == '\n')
-                Buffer_InsertNewline(&s->textBuffer);
-              else
-                Buffer_InsertChar(&s->textBuffer, edit->text[j]);
-            }
-          }
-        }
-
         s->selection.active = 0;
         App_SyncEditedState(s);
         App_RefreshEditorAfterAction(hWnd, s);
-        HistoryAction_Free(&undoAction);
       }
     }
     return 0;
@@ -252,37 +231,11 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   case ID_EDIT_REDO:
     if (History_CanRedo(&s->history))
     {
-      HistoryAction redoAction;
-      HistoryAction_Init(&redoAction);
-      if (History_Redo(&s->history, &s->textBuffer, &redoAction))
+      if (History_Redo(&s->history, &s->textBuffer))
       {
-        /* Apply edits in forward order */
-        for (int i = 0; i < redoAction.editCount; i++)
-        {
-          HistoryEdit *edit = &redoAction.edits[i];
-          if (edit->type == HISTORY_EDIT_INSERT)
-          {
-            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
-            for (int j = 0; edit->text[j]; j++)
-            {
-              if (edit->text[j] == '\n')
-                Buffer_InsertNewline(&s->textBuffer);
-              else
-                Buffer_InsertChar(&s->textBuffer, edit->text[j]);
-            }
-          }
-          else if (edit->type == HISTORY_EDIT_DELETE)
-          {
-            Cursor_SetPosition(&s->textBuffer, edit->row, edit->col);
-            for (int j = 0; j < (int)strlen(edit->text); j++)
-              Buffer_Delete(&s->textBuffer);
-          }
-        }
-
         s->selection.active = 0;
         App_SyncEditedState(s);
         App_RefreshEditorAfterAction(hWnd, s);
-        HistoryAction_Free(&redoAction);
       }
     }
     return 0;
@@ -370,14 +323,7 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
   }
 
   case ID_EDIT_DELETE:
-    if (Buffer_DeleteSelection(&s->textBuffer, &s->selection))
-    {
-      s->selection.active = 0;
-    }
-    else
-    {
-      Buffer_Delete(&s->textBuffer);
-    }
+    History_RecordAndExecuteDelete(&s->history, &s->textBuffer, &s->selection);
     App_SyncEditedState(s);
     App_RefreshEditorAfterAction(hWnd, s);
     return 0;
@@ -400,39 +346,8 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       return 0;
 
   case ID_VIEW_WORDWRAP:
-  {
-      s->wordWrapEnabled = !s->wordWrapEnabled;
-      s->textBuffer.wordWrapEnabled = s->wordWrapEnabled;
-
-      // Update menu checkmark
-      HMENU hMenu = GetMenu(hWnd);
-      if (hMenu)
-      {
-          CheckMenuItem(hMenu, ID_VIEW_WORDWRAP, s->wordWrapEnabled ? MF_CHECKED : MF_UNCHECKED);
-      }
-
-      // Recalculate wrapCols
-      if (s->wordWrapEnabled)
-      {
-          RECT rc;
-          GetClientRect(hWnd, &rc);
-          int clientWidth = rc.right - rc.left;
-          int charWidth = s->charWidth > 0 ? s->charWidth : 1;
-          int wrapCols = (clientWidth - TEXT_PADDING_LEFT) / charWidth;
-          s->textBuffer.wrapCols = (wrapCols < 10) ? 10 : wrapCols;
-      }
-      else
-      {
-          s->textBuffer.wrapCols = BUF_MAX_COLS - 1;
-      }
-
-      // Reflow all lines in the buffer
-      Buffer_ReflowAll(&s->textBuffer);
-
-      // Refresh editor UI
-      App_RefreshEditorAfterAction(hWnd, s);
+      WordWrap_Toggle(hWnd, s);
       return 0;
-  }
 
   case ID_VIEW_ZOOM_IN:
       Zoom_In(hWnd, s);
