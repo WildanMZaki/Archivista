@@ -90,6 +90,7 @@ LRESULT App_OnCreate(HWND hWnd)
 
   App_AttachState(hWnd, s);
   Buffer_Init(&s->textBuffer);
+  History_Init(&s->history);
 
   App_SyncEditedState(s);
 
@@ -143,6 +144,7 @@ LRESULT App_OnDestroy(HWND hWnd)
 
   if (s)
   {
+    History_Free(&s->history);
     Buffer_Free(&s->textBuffer);
     if (s->editorFont)
       DeleteObject(s->editorFont);
