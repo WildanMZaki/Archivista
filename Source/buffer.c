@@ -51,41 +51,61 @@ static TextLineNode *Buffer_InsertWrappedNodeAfter(TextLineNode *node, TextBuffe
 
 static void Buffer_MoveCursor(TextBuffer *buf, TextLineNode *node, int row, int col);
 
-// Ensure there is room at the start of node->next to accept one char moved from node.
 static void Buffer_MakeRoomAtNext(TextLineNode *node, TextBuffer *buf)
 {
     if (!node || !buf)
         return;
 
-    TextLineNode *next = node->next;
-    if (!next)
+    /* Collect nodes that need room made, from node outward */
+    TextLineNode *chain[1024]; /* Reasonable upper bound */
+    int chainLen = 0;
+    TextLineNode *cur = node;
+
+    while (cur && cur->len >= BUF_MAX_COLS - 1 && chainLen < 1024)
     {
-        next = Buffer_CreateWrappedNode();
-        if (!next)
-            return;
-        next->prev = node;
-        next->next = NULL;
-        node->next = next;
-        buf->tail = next;
-        buf->lineCount++;
+        chain[chainLen++] = cur;
+
+        if (!cur->next)
+        {
+            TextLineNode *newNode = Buffer_CreateWrappedNode();
+            if (!newNode) return;
+            newNode->prev = cur;
+            newNode->next = NULL;
+            cur->next = newNode;
+            buf->tail = newNode;
+            buf->lineCount++;
+        }
+        else if (!cur->next->isWrapped)
+        {
+            TextLineNode *newNode = Buffer_CreateWrappedNode();
+            if (!newNode) return;
+            newNode->prev = cur;
+            newNode->next = cur->next;
+            cur->next->prev = newNode;
+            cur->next = newNode;
+            buf->lineCount++;
+        }
+        
+        cur = cur->next;
     }
 
-    if (next->len >= BUF_MAX_COLS - 1)
+    /* Now process from end of chain backwards */
+    for (int i = chainLen - 1; i >= 0; i--)
     {
-        // next is full, make room recursively first
-        Buffer_MakeRoomAtNext(next, buf);
-    }
+        TextLineNode *n = chain[i];
+        TextLineNode *next = n->next;
 
-    if (next->len < BUF_MAX_COLS - 1)
-    {
-        char carry = node->text[node->len - 1];
-        memmove(&next->text[1], &next->text[0], (size_t)next->len);
-        next->text[0] = carry;
-        next->len++;
-        next->text[next->len] = '\0';
+        if (next && next->isWrapped && next->len < BUF_MAX_COLS - 1)
+        {
+            char carry = n->text[n->len - 1];
+            memmove(&next->text[1], &next->text[0], (size_t)next->len);
+            next->text[0] = carry;
+            next->len++;
+            next->text[next->len] = '\0';
 
-        node->len--;
-        node->text[node->len] = '\0';
+            n->len--;
+            n->text[n->len] = '\0';
+        }
     }
 }
 
