@@ -3,6 +3,7 @@
 #include "../Header/scroll.h"
 #include "../Header/config.h"
 #include "../Header/main.h"
+#include "../Header/wordwrap.h"
 
 void Zoom_Apply(HWND hWnd, AppState *s)
 {

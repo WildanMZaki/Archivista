@@ -14,6 +14,7 @@
 #include "../Header/config.h"
 #include "../Header/utils.h"
 #include "../Header/window.h"
+#include "../Header/wordwrap.h"
 
 
 void App_AttachState(HWND hWnd, AppState *state)
@@ -96,6 +97,8 @@ LRESULT App_OnCreate(HWND hWnd)
 
   HMENU hMenu = CreateAppMenu();
   SetMenu(hWnd, hMenu);
+  
+  WordWrap_Init(hWnd, s);
 
   int loadedSize = Config_ReadInt("Settings", "ZoomSize", ZOOM_DEFAULT);
   if (loadedSize < ZOOM_MIN || loadedSize > ZOOM_MAX) {
@@ -343,37 +346,8 @@ LRESULT App_OnCommand(HWND hWnd, WPARAM wParam, LPARAM lParam)
       return 0;
 
   case ID_VIEW_WORDWRAP:
-  {
-      s->wordWrapEnabled = !s->wordWrapEnabled;
-      s->textBuffer.wordWrapEnabled = s->wordWrapEnabled;
-
-      // Update menu checkmark
-      HMENU hMenu = GetMenu(hWnd);
-      if (hMenu)
-      {
-          CheckMenuItem(hMenu, ID_VIEW_WORDWRAP, s->wordWrapEnabled ? MF_CHECKED : MF_UNCHECKED);
-      }
-
-      // Recalculate wrapCols
-      if (s->wordWrapEnabled)
-      {
-          RECT rc;
-          GetClientRect(hWnd, &rc);
-          int clientWidth = rc.right - rc.left;
-          s->textBuffer.wrapCols = CalcWrapCols(clientWidth, s->charWidth);
-      }
-      else
-      {
-          s->textBuffer.wrapCols = BUF_MAX_COLS - 1;
-      }
-
-      // Reflow all lines in the buffer
-      Buffer_ReflowAll(&s->textBuffer);
-
-      // Refresh editor UI
-      App_RefreshEditorAfterAction(hWnd, s);
+      WordWrap_Toggle(hWnd, s);
       return 0;
-  }
 
   case ID_VIEW_ZOOM_IN:
       Zoom_In(hWnd, s);

@@ -6,6 +6,7 @@
 #include "../Header/search.h"
 #include "../Header/scroll.h"
 #include "../Header/main.h"
+#include "../Header/wordwrap.h"
 
 LRESULT CALLBACK WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
